@@ -1,5 +1,5 @@
-# build.yml kanged from Rezoss Reza modified to build kernel with ReSukiSU using the main branch
-name: Build kernel (ReSukiSU, `main` branch)
+# build.yml kanged from Rezzoss Reza modified to build kernel with ReSukiSU using the main branch+kanged whole repo by me from gyabii to integrate droidspaces
+name: Build kernel (ReSukiSU + Droidspaces, `main` branch)
 on:
   workflow_dispatch:
 
@@ -17,8 +17,8 @@ jobs:
             bc bison build-essential curl flex \
             g++-multilib gcc-multilib git gnupg \
             lib32readline-dev lib32z1-dev \
-            libelf-dev liblz4-tool libssl-dev \
-            lzop zlib1g-dev pahole dwarves cpio zip \
+            libelf-dev libbz2-dev libssl-dev \
+            lzip zlib1g-dev pahole dwarves cpio zip \
             python3 python-is-python3 tar perl lz4 jq
 
       - name: Download anykernel.zip
@@ -27,18 +27,50 @@ jobs:
 
       - name: Apply ReSukiSU
         run: |
-          set -euxo pipefail
-
-          # Determine the current kernel version
+          set -euo pipefail
           echo "KERNEL_VERSION=$(grep -m1 '^SUBLEVEL =' ./Makefile | awk '{print $3}')" >> $GITHUB_ENV
-
-          # Integrate ReSukiSU
-          curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
-
+          curl -Ls "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
           CONFIG_FILE=arch/arm64/configs/gki_defconfig
           cat >> "$CONFIG_FILE" << 'EOF'
-          CONFIG_KSU=y
-          EOF
+CONFIG_KSU=y
+EOF
+
+      - name: Apply Droidspaces
+        run: |
+          set -euo pipefail
+          curl -Ls -o droidspaces_sysvipc.patch "https://raw.githubusercontent.com/ravindu644/Droidspaces-OSS/main/Documentation/resources/kernel-patches/GKI/below-kernel-6.12/001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch"
+          patch -p1 < droidspaces_sysvipc.patch
+          
+          CONFIG_FILE=arch/arm64/configs/gki_defconfig
+          declare -a CONFIGS=(
+            "CONFIG_SYSVIPC"
+            "CONFIG_POSIX_MQUEUE"
+            "CONFIG_IPC_NS"
+            "CONFIG_PID_NS"
+            "CONFIG_DEVTMPFS"
+            "CONFIG_NETFILTER_XT_MATCH_ADDRTYPE"
+            "CONFIG_USER_NS"
+            "CONFIG_NETFILTER_XT_TARGET_REJECT"
+            "CONFIG_NETFILTER_XT_TARGET_LOG"
+            "CONFIG_NETFILTER_XT_MATCH_RECENT"
+            "CONFIG_IP_SET"
+            "CONFIG_IP_SET_HASH_IP"
+            "CONFIG_IP_SET_HASH_NET"
+            "CONFIG_NETFILTER_XT_SET"
+            "CONFIG_TMPFS_POSIX_ACL"
+            "CONFIG_TMPFS_XATTR"
+          )
+          
+          for cfg in "${CONFIGS[@]}"; do
+            if grep -q "^# $cfg is not set" "$CONFIG_FILE"; then
+              sed -i "s/^# $cfg is not set/$cfg=y/" "$CONFIG_FILE"
+            elif grep -q "^$cfg=" "$CONFIG_FILE"; then
+              # Already set, do nothing
+              true
+            else
+              echo "$cfg=y" >> "$CONFIG_FILE"
+            fi
+          done
 
       - name: Set up swap space
         uses: pierotofy/set-swap-space@master
@@ -56,11 +88,11 @@ jobs:
         id: package
         run: |
           echo "DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
-          set -euxo pipefail
+          set -euo pipefail
           unzip "anykernel.zip" -d anykernel/
           cp out/arch/arm64/boot/Image.gz anykernel/
           # Build final name
-          ZIP_NAME="common-5.15.${KERNEL_VERSION}-gyabii_resukisu-$(date +%d%m%y-%H%M%S)"
+          ZIP_NAME="common-5.15.${KERNEL_VERSION}-gyabii_resukisu_droidspaces-$(date +%d%m%y-%H%M%S)"
           cd anykernel
           zip -r0 ../"${ZIP_NAME}".zip ./*
           echo "zip_path=$GITHUB_WORKSPACE/${ZIP_NAME}.zip" >> "$GITHUB_OUTPUT"
@@ -70,6 +102,5 @@ jobs:
       - name: Upload the flashable kernel
         uses: actions/upload-artifact@v7
         with:
-          name: ${{steps.package.outputs.zip_name}}
+          name: ${{ steps.package.outputs.zip_name }}
           path: anykernel/
-          
