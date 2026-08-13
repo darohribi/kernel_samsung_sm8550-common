@@ -31,9 +31,7 @@ jobs:
           echo "KERNEL_VERSION=$(grep -m1 '^SUBLEVEL =' ./Makefile | awk '{print $3}')" >> $GITHUB_ENV
           curl -Ls "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
           CONFIG_FILE=arch/arm64/configs/gki_defconfig
-          cat >> "$CONFIG_FILE" << 'EOF'
-CONFIG_KSU=y
-EOF
+          echo "CONFIG_KSU=y" >> "$CONFIG_FILE"
 
       - name: Apply Droidspaces
         run: |
