@@ -1,4 +1,4 @@
-# build.yml kanged from Rezzoss Reza modified to build kernel with ReSukiSU using the main branch+kanged whole repo by me from gyabii to integrate droidspaces
+# build.yml kanged from Rezzoss Reza modified to build kernel with ReSukiSU using the main branch+kanged whole repo by me from gyabii to integrate droidspaces.
 name: Build kernel (ReSukiSU + Droidspaces, `main` branch)
 on:
   workflow_dispatch:
