@@ -1,18 +1,9 @@
-# build.yml kanged from Rezzoss Reza modified to build kernel with ReSukiSU using the main branch+kanged whole repo by me from gyabii to integrate droidspaces.
-name: Build kernel (ReSukiSU + Droidspaces + MAX PERF, `main` branch)
+# build.yml kanged from Rezzoss Reza modified to build kernel with ReSukiSU + Droidspaces + MAX PERF (benchmark mode)
+name: Build kernel (ReSukiSU + Droidspaces + MAX PERF BENCHMARK, `main` branch)
 
 on:
   workflow_dispatch:
     inputs:
-      build_type:
-        description: 'Build type'
-        type: choice
-        required: true
-        default: 'max_perf'
-        options:
-          - max_perf
-          - max_perf_pgo
-          - benchmark
       upload_artifact:
         description: 'Upload kernel as artifact'
         type: boolean
@@ -28,13 +19,13 @@ jobs:
     timeout-minutes: 180
     
     env:
-      # Maximum performance build flags
-      KBUILD_CFLAGS: "-O3 -fno-semantic-interposition -fno-trapping-math -fno-math-errno -fno-rounding-math -fno-signed-zeros -freciprocal-math -ffast-math -funsafe-math-optimizations -fassociative-math -funroll-loops -fpeel-loops -funswitch-loops -fvect-cost-model=very-cheap -fslp-vectorize-aggressive -fdevirtualize -fdevirtualize-speculatively -fwhole-program-vtables -fvisibility=hidden -flto=full -fuse-ld=lld -mcpu=cortex-x3 -mtune=cortex-x3 -march=armv9-a -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
-      KBUILD_LDFLAGS: "-Wl,--icf=all -Wl,--gc-sections -Wl,--build-id=sha1 -Wl,--compress-debug-sections=zstd -Wl,-O3 -Wl,--threads=16"
+      # Maximum performance build flags (benchmark mode)
+      KBUILD_CFLAGS: "-O3 -fno-semantic-interposition -fno-trapping-math -fno-math-errno -fno-rounding-math -fno-signed-zeros -freciprocal-math -ffast-math -funsafe-math-optimizations -fassociative-math -funroll-loops -fpeel-loops -funswitch-loops -fvect-cost-model=very-cheap -fslp-vectorize-aggressive -fdevirtualize -fdevirtualize-speculatively -fwhole-program-vtables -fvisibility=hidden -flto=full -fuse-ld=lld -mcpu=cortex-x3 -mtune=cortex-x3 -march=armv9-a -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer -fprofile-generate=${OUT_DIR}/pgo -fcs-profile-generate"
+      KBUILD_LDFLAGS: "-Wl,--icf=all -Wl,--gc-sections -Wl,--build-id=sha1 -Wl,--compress-debug-sections=zstd -Wl,-O3 -Wl,--threads=16 -fuse-ld=lld"
       CLANG_VERSION: "clang-r596125"
       KERNEL_DEFCONFIG: "gki_defconfig"
       OUT_DIR: "out"
-      KBUILD_COMPILER_STRING: "Android Clang 17 + BOLT + MLGO + PGO"
+      KBUILD_COMPILER_STRING: "Android Clang 17 + BOLT + MLGO + PGO (BENCHMARK MODE)"
 
     steps:
       - name: Checkout the repository
@@ -118,33 +109,8 @@ jobs:
           make O=out gki_defconfig
           ./scripts/verify_perf_config.sh
 
-      - name: Build kernel (MAX PERFORMANCE)
-        if: ${{ inputs.build_type == 'max_perf' }}
-        run: |
-          # Use the standard build script with our patched gki_defconfig
-          chmod +x scripts/build.sh
-          ./scripts/build.sh
-
-      - name: Build kernel (MAX PERFORMANCE + PGO)
-        if: ${{ inputs.build_type == 'max_perf_pgo' }}
-        run: |
-          # Phase 1: PGO instrumented build
-          chmod +x build_max_perf.sh
-          ./build_max_perf.sh
-          
-          # Note: Full PGO requires device profiling. For CI, we skip Phase 2/3.
-          # To complete PGO: flash Phase 1 kernel, run workload, extract profiles,
-          # then re-run with --pgo-use and --bolt flags.
-          echo "PGO instrumented kernel built. For full PGO+BOLT, run on device."
-
       - name: Build kernel (BENCHMARK MODE)
-        if: ${{ inputs.build_type == 'benchmark' }}
         run: |
-          # Maximum aggressive build for benchmarks only
-          # Disable all debug, enable all aggressive optimizations
-          export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fprofile-generate=${OUT_DIR}/pgo -fcs-profile-generate"
-          export KBUILD_LDFLAGS="${KBUILD_LDFLAGS} -fuse-ld=lld"
-          
           make -j"$(nproc --all)" O="${OUT_DIR}" ARCH=arm64 \
                CC="${CLANG_BINARY}" LD="${LLD_BINARY}" \
                LLVM=1 LLVM_IAS=1 \
@@ -176,43 +142,45 @@ jobs:
           
           # Create flashable zip
           cd anykernel
-          zip -r9 "../kernel-maxperf-${{ github.sha }}.zip" . -x "*.git*" -x "README*" -x "*.zip"
+          zip -r9 "../kernel-benchmark-${{ github.sha }}.zip" . -x "*.git*" -x "README*" -x "*.zip"
           cd ..
           
-          echo "KERNEL_ZIP=kernel-maxperf-${{ github.sha }}.zip" >> $GITHUB_ENV
+          echo "KERNEL_ZIP=kernel-benchmark-${{ github.sha }}.zip" >> $GITHUB_ENV
 
       - name: Upload kernel artifact
         if: ${{ inputs.upload_artifact }}
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-maxperf-${{ github.sha }}
-          path: kernel-maxperf-*.zip
+          name: kernel-benchmark-${{ github.sha }}
+          path: kernel-benchmark-*.zip
           retention-days: 30
 
       - name: Create release
         if: ${{ inputs.upload_release }}
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: maxperf-${{ github.run_number }}
-          name: "SM8550 Max Performance Kernel #${{ github.run_number }}"
+          tag_name: benchmark-${{ github.run_number }}
+          name: "SM8550 Benchmark Kernel #${{ github.run_number }}"
           body: |
-            **Maximum Performance Build for SM8550 (Snapdragon 8 Gen 2)**
+            **BENCHMARK MODE Build for SM8550 (Snapdragon 8 Gen 2)**
             
             Build: `${{ github.sha }}`
-            Type: `${{ inputs.build_type }}`
             
             **Optimizations Applied:**
             - Kernel config: UCLAMP=20, THP=always, ZSTD zram/zswap, Kyber I/O, RCU boost=100
-            - Compiler: -O3, Full LTO, fast-math, Cortex-X3 tuned, MLGO
-            - Runtime: Ultra perf script included in zip
-            - Thermal: Userspace governor, raised thresholds
+            - Compiler: -O3, Full LTO, fast-math, Cortex-X3 tuned, MLGO, PGO instrumented
+            - Runtime: Benchmark mode script included in zip (nuclear option)
+            - Thermal: Userspace governor, raised thresholds to 125°C
+            
+            **WARNING:** This is BENCHMARK ONLY. Disables ALL thermal protection.
+            Use `sm8550_benchmark_mode.sh` on device for absolute max scores.
             
             **Included in zip:**
-            - `Image.gz` - Kernel image
-            - `sm8550_ultra_perf_runtime.sh` - Comprehensive runtime tuning
+            - `Image.gz` - Kernel image (PGO instrumented)
             - `sm8550_benchmark_mode.sh` - Nuclear benchmark mode
-            - `sm8550_restore_normal.sh` - Restore safe operation
+            - `sm8550_restore_normal.sh` - Restore safe operation after benchmark
+            - `sm8550_ultra_perf_runtime.sh` - Comprehensive runtime tuning
             - `kernel_cmdline_perf.txt` - Boot parameters
-          files: kernel-maxperf-*.zip
+          files: kernel-benchmark-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
