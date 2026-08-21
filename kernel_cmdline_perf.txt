@@ -1,0 +1,107 @@
+# SM8550 Maximum Performance Kernel Command Line
+# Add to BOOT_IMAGE_CMDLINE or kernel command line in device tree / boot.img
+# Each parameter explained with expected impact
+
+# =========================================================================
+# SCHEDULER / CPU
+# =========================================================================
+# Disable scheduler autogroup (reduces overhead, better for gaming)
+sched_autogroup_enabled=0
+
+# Disable scheduler debug stats (small overhead reduction)
+sched_debug=0
+
+# Reduce migration cost for faster task placement
+sched_migration_cost_ns=500000
+
+# Increase wakeup granularity for throughput
+sched_wakeup_granularity_ns=1000000
+
+# Disable RT runtime limiting (allow full CPU for RT tasks)
+sched_rt_runtime_us=-1
+
+# =========================================================================
+# MEMORY MANAGEMENT
+# =========================================================================
+# Transparent Hugepages: always (maximum throughput)
+transparent_hugepage=always
+
+# Page allocator: prefer local node
+numa_balancing=0
+
+# Disable memory compaction overhead (may increase fragmentation slightly)
+# compact_unevictable_allowed=0
+
+# Slab: disable debug, enable performance
+slub_debug=-
+slub_max_order=3
+slub_min_objects=16
+
+# =========================================================================
+# RCU
+# =========================================================================
+# Accelerate RCU grace periods
+rcu_nocbs=0-7
+rcu_nocb_poll=1
+
+# =========================================================================
+# CPU IDLE / FREQUENCY
+# =========================================================================
+# Use TEO governor (better latency than menu for interactive)
+cpuidle.off=0
+cpuidle.governor=teo
+
+# Disable intel_idle (not on ARM, but safe)
+intel_idle.max_cstate=0
+
+# =========================================================================
+# BLOCK / I/O
+# =========================================================================
+# Disable I/O scheduler merges (lower latency)
+scsi_mod.use_blk_mq=1
+
+# =========================================================================
+# DEBUG / TRACING OVERHEAD REDUCTION
+# =========================================================================
+# Disable ftrace function tracer
+ftrace=function
+
+# Disable printk timestamp overhead
+printk.time=0
+
+# Reduce console log level
+loglevel=3
+
+# Disable lockdep (already off in defconfig, but ensure)
+lockdep=0
+
+# Disable debug objects
+debug_objects=0
+
+# Disable kmemleak
+kmemleak=off
+
+# =========================================================================
+# THERMAL / POWER
+# =========================================================================
+# Disable thermal throttling early (use userspace governor instead)
+thermal.off=0
+thermal.nocrt=1
+
+# =========================================================================
+# KERNEL PRE-EMPTION
+# =========================================================================
+# Already PREEMPT=y in config; these are runtime
+preempt=full
+
+# =========================================================================
+# ANDROID SPECIFIC
+# =========================================================================
+# Disable Android debug overhead
+androidboot.debug=0
+androidboot.verifiedbootstate=green
+
+# =========================================================================
+# COMBINED SINGLE LINE (for boot.img cmdline)
+# =========================================================================
+# console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0x4a90000 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=2048 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.init_fatal_reboot_target=recovery androidboot.boot_devices=soc/1d84000.ufshc androidboot.force_normal_boot=1 androidboot.performance_mode=1 sched_autogroup_enabled=0 sched_debug=0 sched_migration_cost_ns=500000 sched_wakeup_granularity_ns=1000000 sched_rt_runtime_us=-1 transparent_hugepage=always numa_balancing=0 slub_debug=- slub_max_order=3 cpuidle.governor=teo rcu_nocbs=0-7 rcu_nocb_poll=1 ftrace=function printk.time=0 loglevel=3 lockdep=0 debug_objects=0 kmemleak=off thermal.nocrt=1 preempt=full androidboot.debug=0

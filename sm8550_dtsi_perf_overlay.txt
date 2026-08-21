@@ -1,0 +1,355 @@
+# SM8550 Maximum Performance - Device Tree / Firmware Changes
+# These are DTSI overlays / firmware modifications required for max perf
+# Apply via device tree overlay (.dtbo) or patch the board DTS
+
+# =========================================================================
+# 1. CPU CLUSTER DTSI OVERRIDES
+# =========================================================================
+
+## arch/arm64/boot/dts/qcom/sm8550-perf-overlay.dtsi
+## Overlay to apply on top of sm8550.dtsi
+
+/dts-v1/;
+/plugin/;
+
+&cpus {
+    /* 
+     * Override OPP tables for higher sustained frequencies
+     * WARNING: Requires adequate cooling (vapor chamber/heatsink)
+     */
+    
+    /* Cortex-X3 (Prime) - cpu7 */
+    &cpu7_opp_table {
+        opp-3187200000 {
+            opp-hz = /bits/ 64 <3187200000>;
+            opp-peak-kBps = <51200>;
+            opp-supported-hw = <0x1>;
+        };
+        
+        /* Add turbo OPP at 3.36 GHz if PMIC supports */
+        opp-3360000000 {
+            opp-hz = /bits/ 64 <3360000000>;
+            opp-peak-kBps = <51200>;
+            opp-supported-hw = <0x1>;
+        };
+    };
+    
+    /* Cortex-A715 (Mid) - cpu4-6 */
+    &cpu4_opp_table {
+        opp-2803200000 {
+            opp-hz = /bits/ 64 <2803200000>;
+            opp-peak-kBps = <51200>;
+            opp-supported-hw = <0x1>;
+        };
+        
+        opp-2900000000 {
+            opp-hz = /bits/ 64 <2900000000>;
+            opp-peak-kBps = <51200>;
+            opp-supported-hw = <0x1>;
+        };
+    };
+    
+    /* Cortex-A510 (Little) - cpu0-3 */
+    &cpu0_opp_table {
+        opp-2016000000 {
+            opp-hz = /bits/ 64 <2016000000>;
+            opp-peak-kBps = <30720>;
+            opp-supported-hw = <0x1>;
+        };
+        
+        opp-2200000000 {
+            opp-hz = /bits/ 64 <2200000000>;
+            opp-peak-kBps = <30720>;
+            opp-supported-hw = <0x1>;
+        };
+    };
+};
+
+# =========================================================================
+# 2. CPUFREQ HW (QCOM) OVERRIDES
+# =========================================================================
+
+&cpufreq_hw {
+    /* 
+     * Increase boost frequencies for hardware cpufreq
+     * Higher values = more aggressive turbo
+     */
+    qcom,boost-freq = <
+        0x7E9000   /* cpu0-3: 2016 MHz */
+        0xAAC000   /* cpu4-6: 2803 MHz */
+        0xC1D400   /* cpu7: 3187 MHz */
+    >;
+    
+    /* Boost duration (us) */
+    qcom,boost-ms = <200>;
+    
+    /* Disable thermal freq limit at low thresholds */
+    qcom,hw-throttle-temp = <105000>;
+};
+
+# =========================================================================
+# 3. CORE CONTROL DTSI
+# =========================================================================
+
+&core_ctl {
+    status = "okay";
+    
+    /* Big cluster (cpu4-7) */
+    cluster1 {
+        qcom,min-cpus = <1>;
+        qcom,max-cpus = <4>;
+        qcom,busy-up-thres = <85>;
+        qcom,busy-down-thres = <35>;
+        qcom,offline-delay-ms = <50>;
+        qcom,boost-duration-ms = <200>;
+    };
+    
+    /* Mid cluster (cpu1-3) - if separate */
+    cluster2 {
+        qcom,min-cpus = <1>;
+        qcom,max-cpus = <3>;
+        qcom,busy-up-thres = <90>;
+        qcom,busy-down-thres = <40>;
+        qcom,offline-delay-ms = <100>;
+    };
+    
+    /* Little cluster (cpu0) */
+    cluster0 {
+        qcom,min-cpus = <2>;
+        qcom,max-cpus = <4>;
+        qcom,busy-up-thres = <75>;
+        qcom,busy-down-thres = <30>;
+        qcom,offline-delay-ms = <200>;
+    };
+};
+
+# =========================================================================
+# 4. GPU (Adreno 740) DTSI
+# =========================================================================
+
+&adreno_gpu {
+    status = "okay";
+    
+    /* Max GPU frequency: 900 MHz */
+    qcom,gpu-freq-table = <
+        900000000
+        750000000
+        600000000
+        450000000
+        300000000
+    >;
+    
+    /* Increase bus bandwidth for GPU */
+    qcom,gpu-bw-table = <
+        51200
+        30720
+        20480
+        12288
+        8192
+    >;
+    
+    /* Preemption: enabled with low timeout */
+    qcom,preempt-Timeout-ms = <1>;
+    
+    /* Disable frequency throttling at low temps */
+    qcom,gpu-throttle-temp = <100000>;
+    
+    /* Increased power levels */
+    qcom,max-pwrlevel = <0>;  /* Index 0 = max freq */
+};
+
+# =========================================================================
+# 5. DDR / Bus Scaling DTSI
+# =========================================================================
+
+&ddr {
+    status = "okay";
+    
+    /* Max DDR bandwidth: 51.2 GB/s (DDR5-6400) */
+    qcom,ddr-bw-max = <51200>;
+    
+    /* Disable bandwidth throttling */
+    qcom,ddr-bw-throttle-temp = <95000>;
+    
+    /* BIMC frequency table */
+    qcom,bimc-freq-table = <
+        1200000000  /* Max BIMC freq */
+        1000000000
+        800000000
+        600000000
+        400000000
+    >;
+};
+
+# =========================================================================
+# 6. THERMAL DTSI (raise thresholds)
+# =========================================================================
+
+&thermal_zones {
+    /* CPU zone - raise critical to 105°C */
+    cpu0-3-thermal {
+        polling-delay = <1000>;
+        polling-delay-passive = <5000>;
+        
+        trips {
+            trip-point0 {
+                temperature = <95000>;  /* Passive at 95°C */
+                hysteresis = <5000>;
+                type = "passive";
+            };
+            trip-point1 {
+                temperature = <105000>;  /* Critical at 105°C */
+                hysteresis = <2000>;
+                type = "critical";
+            };
+        };
+    };
+    
+    cpu4-7-thermal {
+        polling-delay = <1000>;
+        polling-delay-passive = <5000>;
+        
+        trips {
+            trip-point0 {
+                temperature = <95000>;
+                hysteresis = <5000>;
+                type = "passive";
+            };
+            trip-point1 {
+                temperature = <105000>;
+                hysteresis = <2000>;
+                type = "critical";
+            };
+        };
+    };
+    
+    gpu-thermal {
+        trips {
+            trip-point0 {
+                temperature = <90000>;
+                hysteresis = <5000>;
+                type = "passive";
+            };
+            trip-point1 {
+                temperature = <100000>;
+                hysteresis = <2000>;
+                type = "critical";
+            };
+        };
+    };
+    
+    /* Skin temperature - keep for user comfort */
+    skin-thermal {
+        trips {
+            trip-point0 {
+                temperature = <45000>;
+                hysteresis = <3000>;
+                type = "passive";
+            };
+        };
+    };
+};
+
+# =========================================================================
+# 7. CPU IDLE DTSI (disable deep C-states)
+# =========================================================================
+
+&cpus {
+    /* Disable C3/C4 for latency-sensitive workloads */
+    cpu0: cpu@0 {
+        cpu-idle-states = <&C1_cpu &C2_cpu>;  /* Remove C3, C4 */
+    };
+    
+    cpu4: cpu@400 {
+        cpu-idle-states = <&C1_big &C2_big>;  /* Remove C3, C4 */
+    };
+    
+    cpu7: cpu@700 {
+        cpu-idle-states = <&C1_prime &C2_prime>;  /* Remove C3, C4 */
+    };
+};
+
+# =========================================================================
+# 8. QCOM CPU BOOST DTSI
+# =========================================================================
+
+&qcom_cpuboost {
+    status = "okay";
+    
+    /* Input boost config */
+    qcom,input-boost-freq = <
+        0x7E9000   /* cpu0-3: 2016 MHz */
+        0xAAC000   /* cpu4-6: 2803 MHz */
+        0xC1D400   /* cpu7: 3187 MHz */
+    >;
+    
+    qcom,input-boost-ms = <200>;
+    
+    /* Launch boost */
+    qcom,launch-boost-freq = <
+        0xAAC000
+        0xC1D400
+        0xC1D400
+    >;
+    
+    qcom,launch-boost-ms = <500>;
+    
+    /* Sustained boost */
+    qcom,sustained-boost-freq = <
+        0x7E9000
+        0xAAC000
+        0xC1D400
+    >;
+};
+
+# =========================================================================
+# 9. FIRMWARE MODIFICATIONS (if accessible)
+# =========================================================================
+
+## a) RPMh (Resource Power Manager, hardware)
+## These are typically in vendor firmware; document for reference:
+## - Raise PMIC voltage ceiling for higher CPU/GPU clocks
+## - Increase sustained power budget (from 8W to 12W+)
+## - Disable thermal emergency shutdown at 100°C (move to 105°C)
+
+## b) TZ (TrustZone) - thermal limits
+## - Raise thermal trip points in TZ thermal policy
+## - Increase CPU/GPU power budget
+
+## c) ABL (Application Boot Loader)
+## - Set performance mode in cmdline
+## - Disable CPU power gating at boot
+## - Enable all cores immediately
+
+## d) XBL (eXtensible Boot Loader)
+## - Configure PMIC for higher sustained power
+## - Set DDR training for max bandwidth
+
+# =========================================================================
+# 10. BUILD INSTRUCTIONS
+# =========================================================================
+
+# Compile overlay:
+# dtc -I dts -O dtb -o sm8550-perf-overlay.dtbo sm8550-perf-overlay.dtsi
+#
+# Apply at boot (fastboot):
+# fastboot flash dtbo sm8550-perf-overlay.dtbo
+#
+# Or include in boot.img:
+# mkbootimg --dtb sm8550-perf-overlay.dtbo ...
+
+# =========================================================================
+# 11. VERIFICATION
+# =========================================================================
+
+# Check applied OPPs:
+# cat /sys/devices/system/cpu/cpufreq/policy*/cpuinfo_max_freq
+#
+# Check GPU max:
+# cat /sys/class/kgsl/kgsl-3d0/max_gpuclk
+#
+# Check DDR:
+# cat /sys/class/devfreq/soc:qcom,mincpubw/max_freq
+#
+# Check thermal zones:
+# cat /sys/class/thermal/thermal_zone*/trip_point_*_temp

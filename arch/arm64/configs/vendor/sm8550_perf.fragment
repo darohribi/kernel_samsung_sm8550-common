@@ -1,0 +1,93 @@
+# SM8550 Maximum Performance Fragment
+# Include this in your board defconfig: include "vendor/sm8550_perf.fragment"
+
+# =========================================================================
+# SCHEDULER / EAS / UCLAMP
+# =========================================================================
+CONFIG_SCHED_WALT=y
+CONFIG_UCLAMP_BUCKETS_COUNT=40
+CONFIG_SCHED_THERMAL_PRESSURE=y
+CONFIG_SCHED_INFO=y
+CONFIG_SCHEDSTATS=y
+
+# =========================================================================
+# CPUFREQ / GOVERNORS
+# =========================================================================
+CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
+CONFIG_CPU_FREQ_GOV_ONDEMAND=y
+
+# =========================================================================
+# CPU BOOST / CORE CONTROL (Qualcomm SM8550 specific)
+# =========================================================================
+CONFIG_QCOM_CPUBOOST=y
+CONFIG_QCOM_CORE_CTL=y
+
+# =========================================================================
+# THERMAL MANAGEMENT - Performance first
+# =========================================================================
+CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE=y
+# CONFIG_THERMAL_GOV_POWER_ALLOCATOR is not set
+CONFIG_THERMAL_GOV_STEP_WISE=y
+CONFIG_THERMAL_GOV_USER_SPACE=y
+
+# =========================================================================
+# MEMORY / ZRAM / SWAP
+# =========================================================================
+CONFIG_ZRAM_DEF_COMP_ZSTD=y
+CONFIG_ZRAM_LRU_WRITEBACK_LIMIT=4096
+CONFIG_FRONTSWAP=y
+CONFIG_ZSWAP=y
+CONFIG_ZSWAP_COMPRESSOR_DEFAULT="zstd"
+CONFIG_ZSWAP_ZPOOL_DEFAULT="z3fold"
+
+# =========================================================================
+# I/O SCHEDULER - UFS optimized
+# =========================================================================
+# CONFIG_IOSCHED_BFQ is not set
+CONFIG_MQ_IOSCHED_KYBER=y
+CONFIG_MQ_IOSCHED_DEADLINE=y
+
+# =========================================================================
+# GPU (Adreno 740)
+# =========================================================================
+CONFIG_DRM_MSM_PREEMPT=y
+
+# =========================================================================
+# RCU TUNING
+# =========================================================================
+CONFIG_RCU_BOOST_DELAY=100
+CONFIG_RCU_BOOST_PRIO=99
+CONFIG_RCU_NOCB_CPU_DEFAULT_ALL=y
+
+# =========================================================================
+# TRANSPARENT HUGEPAGES
+# =========================================================================
+CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
+# CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is not set
+
+# =========================================================================
+# DEBUG / OVERHEAD REDUCTION
+# =========================================================================
+# CONFIG_DEBUG_KERNEL is not set
+# CONFIG_SCHED_DEBUG is not set
+# CONFIG_SCHEDSTATS is not set
+# CONFIG_DEBUG_PREEMPT is not set
+# CONFIG_DEBUG_SPINLOCK is not set
+# CONFIG_DEBUG_MUTEXES is not set
+# CONFIG_DEBUG_ATOMIC_SLEEP is not set
+# CONFIG_DEBUG_LIST is not set
+# CONFIG_DEBUG_OBJECTS is not set
+# CONFIG_DEBUG_PERF_USE_VMALLOC is not set
+# CONFIG_CGROUP_PERF is not set
+# CONFIG_KALLSYMS_ALL is not set
+# CONFIG_KALLSYMS_BASE_RELATIVE is not set
+CONFIG_KALLSYMS=y
+CONFIG_FRAME_POINTER=y
+
+# =========================================================================
+# COMPILER OPTIMIZATIONS (already in gki_defconfig, keeping for reference)
+# =========================================================================
+CONFIG_LTO_CLANG=y
+CONFIG_LTO_CLANG_FULL=y
+CONFIG_HAS_LTO_CLANG=y
