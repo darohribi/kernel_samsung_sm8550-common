@@ -31,7 +31,7 @@ jobs:
       # Maximum performance build flags
       KBUILD_CFLAGS: "-O3 -fno-semantic-interposition -fno-trapping-math -fno-math-errno -fno-rounding-math -fno-signed-zeros -freciprocal-math -ffast-math -funsafe-math-optimizations -fassociative-math -funroll-loops -fpeel-loops -funswitch-loops -fvect-cost-model=very-cheap -fslp-vectorize-aggressive -fdevirtualize -fdevirtualize-speculatively -fwhole-program-vtables -fvisibility=hidden -flto=full -fuse-ld=lld -mcpu=cortex-x3 -mtune=cortex-x3 -march=armv9-a -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
       KBUILD_LDFLAGS: "-Wl,--icf=all -Wl,--gc-sections -Wl,--build-id=sha1 -Wl,--compress-debug-sections=zstd -Wl,-O3 -Wl,--threads=16"
-      CLANG_VERSION: "clang-r584948b"
+      CLANG_VERSION: "clang-r596125"
       KERNEL_DEFCONFIG: "gki_defconfig"
       OUT_DIR: "out"
       KBUILD_COMPILER_STRING: "Android Clang 17 + BOLT + MLGO + PGO"
