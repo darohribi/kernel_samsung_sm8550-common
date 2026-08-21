@@ -5,8 +5,8 @@ set -euo pipefail
 KERNEL_DEFCONFIG=${KERNEL_DEFCONFIG:-gki_defconfig}
 CLANG_VERSION=${CLANG_VERSION:-clang-r596125}
 OUT_DIR=${OUT_DIR:-out}
-CLANG_DIR=${CLANG_DIR:-"$HOME/tools/google-clang"}
-CLANG_BINARY="$CLANG_DIR/bin/clang"
+CLANG_DIR=${CLANG_DIR:-\"$HOME/tools/google-clang\"}
+CLANG_BINARY=\"$CLANG_DIR/bin/clang\"
 START_TIME=$(date +%s)
 
 # --- pretty logs ---
@@ -14,7 +14,44 @@ GREEN='\033[0;32m'; RED='\033[0;31m'; NC='\033[0m'
 info(){ echo -e "${GREEN}[INFO]${NC} $*"; }
 err(){  echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
+# Try to use pre-installed clang (e.g., from CI workflow) first
+find_clang() {
+    # Check if clang is already in PATH
+    if command -v clang >/dev/null 2>&1; then
+        local clang_path=$(command -v clang)
+        local clang_ver=$($clang_path --version | head -n1)
+        info "Using pre-installed clang: $clang_ver"
+        export CLANG_BINARY="$clang_path"
+        export CLANG_DIR="$(dirname $(dirname $clang_path))"
+        export LLD_BINARY="$(dirname $clang_path)/ld.lld"
+        export PATH="$CLANG_DIR/bin:$PATH"
+        export KBUILD_COMPILER_STRING="$clang_ver"
+        return 0
+    fi
+    # Check common CI locations
+    for dir in /usr/lib/llvm-*/bin /usr/bin; do
+        if [ -f "$dir/clang" ] && [ -f "$dir/ld.lld" ]; then
+            local clang_path="$dir/clang"
+            local clang_ver=$($clang_path --version | head -n1)
+            info "Found clang in $dir: $clang_ver"
+            export CLANG_BINARY="$clang_path"
+            export CLANG_DIR="$(dirname $dir)"
+            export LLD_BINARY="$dir/ld.lld"
+            export PATH="$dir:$PATH"
+            export KBUILD_COMPILER_STRING="$clang_ver"
+            return 0
+        fi
+    done
+    return 1
+}
+
 setup_clang() {
+    # First try to find pre-installed clang
+    if find_clang; then
+        info "Using existing clang installation"
+        return 0
+    fi
+    
     info "Fetching clang version $CLANG_VERSION..."
     mkdir -p "$CLANG_DIR"
     TARBALL="$(mktemp)"
@@ -33,7 +70,7 @@ setup_clang() {
     "${DOWNLOAD_CLANG[@]}"  >/dev/null 2>&1 || err "Download failed"
 
     info "Extracting toolchain..."
-    tar -xzf "$TARBALL" -C "$CLANG_DIR"
+    tar -xzf "$TARBALL" -C "$CLANG_DIR" --no-same-owner --no-same-permissions || err "Extract failed"
     rm -f "$TARBALL"
 
     export PATH="$CLANG_DIR/bin:$PATH"
@@ -53,9 +90,9 @@ build_kernel() {
   make -j"$(nproc --all)" O="$OUT_DIR" ARCH=arm64 CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
        || err "Build failed"
 
-  total=$(( $(date +%s) - START_TIME ))
-  info "Build finished in $((total/60))m $((total%60))s."
+  total_time=$(($(date +%s) - START_TIME))
+  info "Build completed in ${total_time}s"
+  info "Kernel Image: $OUT_DIR/arch/arm64/boot/Image.gz"
 }
 
-# Always build
 build_kernel
