@@ -16,19 +16,7 @@ err(){  echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 
 # Try to use pre-installed clang (e.g., from CI workflow) first
 find_clang() {
-    # Check if clang is already in PATH
-    if command -v clang >/dev/null 2>&1; then
-        local clang_path=$(command -v clang)
-        local clang_ver=$($clang_path --version | head -n1)
-        info "Using pre-installed clang: $clang_ver"
-        export CLANG_BINARY="$clang_path"
-        export CLANG_DIR="$(dirname $(dirname $clang_path))"
-        export LLD_BINARY="$(dirname $clang_path)/ld.lld"
-        export PATH="$CLANG_DIR/bin:$PATH"
-        export KBUILD_COMPILER_STRING="$clang_ver"
-        return 0
-    fi
-    # Check common CI locations
+    # Check common CI locations FIRST (prioritize LLVM apt-installed clang)
     for dir in /usr/lib/llvm-*/bin /usr/bin; do
         if [ -f "$dir/clang" ] && [ -f "$dir/ld.lld" ]; then
             local clang_path="$dir/clang"
@@ -42,6 +30,21 @@ find_clang() {
             return 0
         fi
     done
+    # Then check if clang is in PATH (but verify ld.lld exists)
+    if command -v clang >/dev/null 2>&1; then
+        local clang_path=$(command -v clang)
+        local lld_path=$(command -v ld.lld 2>/dev/null || echo "")
+        if [ -n "$lld_path" ]; then
+            local clang_ver=$($clang_path --version | head -n1)
+            info "Using pre-installed clang: $clang_ver"
+            export CLANG_BINARY="$clang_path"
+            export CLANG_DIR="$(dirname $(dirname $clang_path))"
+            export LLD_BINARY="$lld_path"
+            export PATH="$CLANG_DIR/bin:$PATH"
+            export KBUILD_COMPILER_STRING="$clang_ver"
+            return 0
+        fi
+    fi
     return 1
 }
 
