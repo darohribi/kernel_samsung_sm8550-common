@@ -4,7 +4,7 @@
 # =========================================================================
 # SCHEDULER / EAS / UCLAMP
 # =========================================================================
-CONFIG_SCHED_WALT=y
+# CONFIG_SCHED_WALT=y  # DISABLED: not in GKI common (downstream only)
 CONFIG_UCLAMP_BUCKETS_COUNT=40
 CONFIG_SCHED_THERMAL_PRESSURE=y
 CONFIG_SCHED_INFO=y
@@ -15,13 +15,13 @@ CONFIG_SCHEDSTATS=y
 # =========================================================================
 CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
 CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
-CONFIG_CPU_FREQ_GOV_ONDEMAND=y
+# CONFIG_CPU_FREQ_GOV_ONDEMAND is not set  # DISABLED: conflicts with SCHEDUTIL default
 
 # =========================================================================
 # CPU BOOST / CORE CONTROL (Qualcomm SM8550 specific)
 # =========================================================================
-CONFIG_QCOM_CPUBOOST=y
-CONFIG_QCOM_CORE_CTL=y
+# CONFIG_QCOM_CPUBOOST=y  # DISABLED: not in GKI common (downstream only)
+# CONFIG_QCOM_CORE_CTL=y  # DISABLED: not in GKI common (downstream only)
 
 # =========================================================================
 # THERMAL MANAGEMENT - Performance first

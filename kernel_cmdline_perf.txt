@@ -9,7 +9,7 @@
 sched_autogroup_enabled=0
 
 # Disable scheduler debug stats (small overhead reduction)
-sched_debug=0
+# # sched_debug=0  # DISABLED: keep sched_debug for boot diagnostics
 
 # Reduce migration cost for faster task placement
 sched_migration_cost_ns=500000
@@ -18,13 +18,13 @@ sched_migration_cost_ns=500000
 sched_wakeup_granularity_ns=1000000
 
 # Disable RT runtime limiting (allow full CPU for RT tasks)
-sched_rt_runtime_us=-1
+# # sched_rt_runtime_us=-1  # DISABLED: unlimited RT breaks init boot priority
 
 # =========================================================================
 # MEMORY MANAGEMENT
 # =========================================================================
 # Transparent Hugepages: always (maximum throughput)
-transparent_hugepage=always
+transparent_hugepage=madvise
 
 # Page allocator: prefer local node
 numa_balancing=0
@@ -33,15 +33,15 @@ numa_balancing=0
 # compact_unevictable_allowed=0
 
 # Slab: disable debug, enable performance
-slub_debug=-
-slub_max_order=3
+# # slub_debug=-  # DISABLED: removes all poisoning, causes silent corruption
+# # slub_max_order=3  # DISABLED: default 0, higher = boot-time OOM on phones
 slub_min_objects=16
 
 # =========================================================================
 # RCU
 # =========================================================================
 # Accelerate RCU grace periods
-rcu_nocbs=0-7
+# # rcu_nocbs=0-7  # DISABLED: all-CPU nocb breaks kthreadd boot
 rcu_nocb_poll=1
 
 # =========================================================================
@@ -104,4 +104,4 @@ androidboot.verifiedbootstate=green
 # =========================================================================
 # COMBINED SINGLE LINE (for boot.img cmdline)
 # =========================================================================
-# console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0x4a90000 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=2048 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.init_fatal_reboot_target=recovery androidboot.boot_devices=soc/1d84000.ufshc androidboot.force_normal_boot=1 androidboot.performance_mode=1 sched_autogroup_enabled=0 sched_debug=0 sched_migration_cost_ns=500000 sched_wakeup_granularity_ns=1000000 sched_rt_runtime_us=-1 transparent_hugepage=always numa_balancing=0 slub_debug=- slub_max_order=3 cpuidle.governor=teo rcu_nocbs=0-7 rcu_nocb_poll=1 ftrace=function printk.time=0 loglevel=3 lockdep=0 debug_objects=0 kmemleak=off thermal.nocrt=1 preempt=full androidboot.debug=0
+# console=ttyMSM0,115200n8 earlycon=msm_geni_serial,0x4a90000 androidboot.hardware=qcom androidboot.console=ttyMSM0 androidboot.memcg=1 lpm_levels.sleep_disabled=1 video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 service_locator.enable=1 swiotlb=2048 loop.max_part=7 cgroup.memory=nokmem,nosocket androidboot.init_fatal_reboot_target=recovery androidboot.boot_devices=soc/1d84000.ufshc androidboot.force_normal_boot=1 androidboot.performance_mode=1 sched_autogroup_enabled=0 # sched_debug=0 sched_migration_cost_ns=500000 sched_wakeup_granularity_ns=1000000 # sched_rt_runtime_us=-1 transparent_hugepage=madvise numa_balancing=0 # slub_debug=- # slub_max_order=3 cpuidle.governor=teo # rcu_nocbs=0-7 rcu_nocb_poll=1 ftrace=function printk.time=0 loglevel=3 lockdep=0 debug_objects=0 kmemleak=off thermal.nocrt=1 preempt=full androidboot.debug=0

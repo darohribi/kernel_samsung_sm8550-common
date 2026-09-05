@@ -220,3 +220,46 @@ chmod +x /tmp/verify_perf.sh
 # =====================================================================
 # END OF OPTIMIZATION GUIDE
 # =====================================================================
+# =====================================================================
+# BOOT RECOVERY FIX APPLIED 2026-09-05
+# =====================================================================
+# The original "perf: maximum performance optimizations for SM8550" commit
+# (1e85136) contained multiple config errors that prevented the phone from
+# booting. The following options were DISABLED in this fix:
+#
+# 1. CONFIG_DEBUG_KERNEL=y          -> not set (was overriding gki defconfig)
+# 2. CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y -> madvise (always breaks arm64 mobile)
+# 3. CONFIG_CPU_FREQ_GOV_ONDEMAND=y -> not set (conflicts with schedutil default)
+# 4. CONFIG_SCHED_WALT=y             -> not set (downstream only, not in GKI common)
+# 5. CONFIG_QCOM_CPUBOOST=y          -> not set (downstream only)
+# 6. CONFIG_QCOM_CORE_CTL=y          -> not set (downstream only)
+# 7. CONFIG_DRM_MSM_PREEMPT=y        -> not set (downstream only)
+# 8. CONFIG_RCU_BOOST_PRIO=99        -> removed (not a real symbol)
+# 9. CONFIG_RCU_NOCB_CPU_DEFAULT_ALL=y -> removed (symbol removed, dangerous on mobile)
+# 10. CONFIG_ZRAM_DEF_COMP="zstd"    -> removed (invalid Kconfig syntax)
+# 11. sm8550_dtsi_perf_overlay.txt   -> renamed to .disabled (invalid DTS, OPP table is FW-locked)
+# 12. -ffast-math in build_max_perf.sh -> -fno-fast-math (kernel rejects -ffast-math)
+# 13. -funsafe-math-optimizations    -> -fno-unsafe-math-optimizations
+# 14. sched_rt_runtime_us=-1 (cmdline + runtime scripts) -> disabled (unlimited RT breaks init boot)
+# 15. rcu_nocbs=0-7 (cmdline)         -> disabled (all-CPU nocb breaks kthreadd boot)
+# 16. slub_debug=- (cmdline)          -> disabled (silent memory corruption)
+# 17. slub_max_order=3 (cmdline)      -> disabled (boot-time OOM on phones)
+# 18. sched_debug=0 (cmdline)         -> disabled (keep for boot diagnostics)
+#
+# KEPT (these are safe and effective):
+# - CONFIG_UCLAMP_BUCKETS_COUNT=40
+# - CONFIG_SCHED_THERMAL_PRESSURE=y
+# - CONFIG_ENERGY_MODEL=y
+# - CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+# - CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
+# - CONFIG_THERMAL_DEFAULT_GOV_USER_SPACE=y
+# - CONFIG_ZRAM_DEF_COMP_ZSTD=y
+# - CONFIG_ZRAM_LRU_WRITEBACK_LIMIT=4096
+# - CONFIG_FRONTSWAP=y
+# - CONFIG_ZSWAP=y
+# - CONFIG_MQ_IOSCHED_KYBER=y
+# - CONFIG_RCU_BOOST_DELAY=100
+# - CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+# - PGO, BOLT, MLGO, LTO, -O3 in build script
+# - sched_migration_cost_ns, sched_wakeup_granularity_ns (safe sysctl tweaks)
+# =====================================================================

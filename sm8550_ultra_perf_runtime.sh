@@ -26,7 +26,7 @@ echo 250000 > /proc/sys/kernel/sched_min_granularity_ns 2>/dev/null || true
 echo 1000000 > /proc/sys/kernel/sched_latency_ns 2>/dev/null || true
 
 # RT runtime: unlimited
-echo -1 > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null || true
+# echo -1 > /proc/sys/kernel/sched_rt_runtime_us  # DISABLED: unlimited RT breaks boot 2>/dev/null || true
 echo 950000 > /proc/sys/kernel/sched_rt_period_us 2>/dev/null || true
 
 # EAS energy aware scheduling

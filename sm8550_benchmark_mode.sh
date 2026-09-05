@@ -124,7 +124,7 @@ echo 50000 > /proc/sys/kernel/sched_min_granularity_ns 2>/dev/null || true
 echo 200000 > /proc/sys/kernel/sched_latency_ns 2>/dev/null || true
 
 # RT runtime: UNLIMITED
-echo -1 > /proc/sys/kernel/sched_rt_runtime_us 2>/dev/null || true
+# echo -1 > /proc/sys/kernel/sched_rt_runtime_us  # DISABLED: unlimited RT breaks boot 2>/dev/null || true
 
 # Uclamp: all tasks at MAX
 for cg in /dev/cpuctl/*/uclamp.min; do

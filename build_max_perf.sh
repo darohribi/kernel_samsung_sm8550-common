@@ -34,8 +34,8 @@ export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fno-math-errno"
 export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fno-rounding-math"
 export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fno-signed-zeros"
 export KBUILD_CFLAGS="${KBUILD_CFLAGS} -freciprocal-math"
-export KBUILD_CFLAGS="${KBUILD_CFLAGS} -ffast-math"
-export KBUILD_CFLAGS="${KBUILD_CFLAGS} -funsafe-math-optimizations"
+export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fno-fast-math"
+export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fno-unsafe-math-optimizations"
 export KBUILD_CFLAGS="${KBUILD_CFLAGS} -fassociative-math"
 
 # Loop optimizations
