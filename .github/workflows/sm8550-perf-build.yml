@@ -1,5 +1,10 @@
-# build.yml kanged from Rezzoss Reza modified to build kernel with ReSukiSU using the main branch+kanged whole repo by me from gyabii to integrate droidspaces.
-name: Build kernel (ReSukiSU + Droidspaces + MAX PERF, `main` branch)
+# SM8550 Max Performance Build (clean, safe flags)
+# Uses the fixed sm8550_perf_defconfig (no boot-breakers, no -ffast-math).
+# Builds with Clang 17 + Thin LTO + -O3 + the safe perf defconfig.
+# ReSukiSU + Droidspaces are NOT integrated here - use resukisu-build-nosusfs.yml
+# for that. This workflow is a clean baseline to verify the perf defconfig boots.
+
+name: Build SM8550 Max Performance (safe defconfig)
 
 on:
   workflow_dispatch:
@@ -12,24 +17,28 @@ on:
         description: 'Create GitHub release'
         type: boolean
         default: false
+      apply_resukisu:
+        description: 'Apply ReSukiSU (root) patch'
+        type: boolean
+        default: false
+      apply_droidspaces:
+        description: 'Apply Droidspaces (namespace) patch'
+        type: boolean
+        default: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 180
-    
+
     env:
-      # Maximum performance build flags (SAFE: no -ffast-math, kernel rejects it)
-      # Removed: -ffast-math, -funsafe-math-optimizations, -fassociative-math (cause unstable vmlinux / boot hangs)
-      # Removed: -fno-trapping-math, -fno-math-errno, -fno-rounding-math, -fno-signed-zeros, -freciprocal-math
-      #   (these break FP semantics the kernel depends on; keep kernel defaults)
-      # Kept: -O3, LTO, BOLT, MLGO via Clang flags, loop unroll/peel (safe), -march=armv9-a
+      # SAFE perf flags: NO -ffast-math, NO -funsafe-math-optimizations,
+      # NO -fno-math-errno (kernel rejects all of these).
+      # These are the maximum-impact flags that do not break the kernel.
       KBUILD_CFLAGS: "-O3 -fno-semantic-interposition -funroll-loops -fpeel-loops -funswitch-loops -fvect-cost-model=very-cheap -fslp-vectorize-aggressive -fdevirtualize -fdevirtualize-speculatively -fwhole-program-vtables -fvisibility=hidden -flto=thin -fuse-ld=lld -mcpu=cortex-x3 -mtune=cortex-x3 -march=armv9-a -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer"
       KBUILD_LDFLAGS: "-Wl,--icf=all -Wl,--gc-sections -Wl,--build-id=sha1 -Wl,--compress-debug-sections=zstd -Wl,-O3 -Wl,--threads=16 -fuse-ld=lld"
-      CLANG_VERSION: "clang-r596125"
       KERNEL_DEFCONFIG: "sm8550_perf_defconfig"
       OUT_DIR: "out"
-      KBUILD_COMPILER_STRING: "Android Clang 17 + BOLT + MLGO + PGO"
 
     steps:
       - name: Checkout the repository
@@ -46,55 +55,43 @@ jobs:
             lib32readline-dev lib32z1-dev \
             libelf-dev libbz2-dev libssl-dev \
             lzip zlib1g-dev pahole dwarves cpio zip \
-            python3 python-is-python3 tar perl lz4 jq \
-            llvm-17 llvm-17-dev llvm-17-tools \
-            clang-17 lld-17
+            python3 python-is-python3 tar perl lz4 jq
 
-      - name: Setup Clang 17 with BOLT
+      - name: Setup Clang 17
         run: |
-          # Install clang 17 from LLVM apt repo
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm.gpg] https://apt.llvm.org/noble/ llvm-toolchain-noble-17 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt update
           sudo apt install -y clang-17 lld-17 llvm-17 llvm-17-dev llvm-17-tools
-          
-          # Verify BOLT availability
           which llvm-bolt || echo "BOLT not found, will skip post-link optimization"
-          
-          # Setup paths
           export CLANG_DIR="/usr/lib/llvm-17"
-          export CLANG_BINARY="$CLANG_DIR/bin/clang"
-          export LLD_BINARY="$CLANG_DIR/bin/ld.lld"
           export PATH="$CLANG_DIR/bin:$PATH"
-          
           echo "CLANG_DIR=$CLANG_DIR" >> $GITHUB_ENV
-          echo "CLANG_BINARY=$CLANG_BINARY" >> $GITHUB_ENV
-          echo "LLD_BINARY=$LLD_BINARY" >> $GITHUB_ENV
+          echo "PATH=$PATH" >> $GITHUB_ENV
+          clang-17 --version
+          ld.lld-17 --version
 
       - name: Set up swap space (24GB)
         uses: pierotofy/set-swap-space@master
         with:
           swap-size-gb: 24
 
-      - name: Download anykernel.zip
-        run: |
-          wget -q https://github.com/gyabii/kernel_samsung_sm8550-common/releases/download/anykernel/anykernel.zip
-
       - name: Apply ReSukiSU
+        if: ${{ inputs.apply_resukisu }}
         run: |
           set -euo pipefail
           echo "KERNEL_VERSION=$(grep -m1 '^SUBLEVEL =' ./Makefile | awk '{print $3}')" >> $GITHUB_ENV
           curl -Ls "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/refs/heads/main/kernel/setup.sh" | bash -s main
-          CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG:-gki_defconfig}"
+          CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG}"
           echo "CONFIG_KSU=y" >> "$CONFIG_FILE"
 
       - name: Apply Droidspaces
+        if: ${{ inputs.apply_droidspaces }}
         run: |
           set -euo pipefail
           curl -Ls -o droidspaces_sysvipc.patch "https://raw.githubusercontent.com/ravindu644/Droidspaces-OSS/main/Documentation/resources/kernel-patches/GKI/below-kernel-6.12/001.GKI-below-6.12-fix_sysvipc_kabi_6_7_8.patch"
           patch -p1 < droidspaces_sysvipc.patch
-          
-          CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG:-gki_defconfig}"
+          CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG}"
           declare -a CONFIGS=(
             "CONFIG_SYSVIPC"
             "CONFIG_POSIX_MQUEUE"
@@ -105,7 +102,6 @@ jobs:
             "CONFIG_NET_NS"
             "CONFIG_CGROUP_NS"
           )
-          
           for cfg in "${CONFIGS[@]}"; do
             if ! grep -q "^$cfg=y" "$CONFIG_FILE"; then
               echo "$cfg=y" >> "$CONFIG_FILE"
@@ -115,15 +111,12 @@ jobs:
       - name: Validate performance defconfig
         run: |
           set -e
-          # Make sure the defconfig is syntactically valid and contains the
-          # safe performance tweaks (and not the boot-breakers removed in
-          # commit 58925b367).
           CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG}"
           test -f "$CONFIG_FILE" || (echo "ERROR: $CONFIG_FILE not found"; exit 1)
           make O=out ARCH=arm64 ${KERNEL_DEFCONFIG}
           make O=out ARCH=arm64 olddefconfig
           echo
-          echo "=== Verifying safe tweaks are ENABLED ==="
+          echo "=== Safe tweaks that should be ENABLED ==="
           for cfg in UCLAMP_BUCKETS_COUNT SCHED_THERMAL_PRESSURE ENERGY_MODEL \
                      CPU_FREQ_DEFAULT_GOV_SCHEDUTIL CPU_FREQ_GOV_PERFORMANCE \
                      ZRAM_DEF_COMP_ZSTD FRONTSWAP ZSWAP MQ_IOSCHED_KYBER \
@@ -135,7 +128,7 @@ jobs:
             fi
           done
           echo
-          echo "=== Verifying boot-breakers are DISABLED ==="
+          echo "=== Boot-breakers that should be DISABLED ==="
           BREAK=0
           for cfg in DEBUG_KERNEL TRANSPARENT_HUGEPAGE_ALWAYS CPU_FREQ_GOV_ONDEMAND \
                      SCHED_WALT QCOM_CPUBOOST QCOM_CORE_CTL DRM_MSM_PREEMPT; do
@@ -152,64 +145,67 @@ jobs:
             exit 1
           fi
 
-      - name: Build kernel (MAX PERFORMANCE)
+      - name: Build kernel
         run: |
           set -e
-          # Use the standard kernel build script with our perf defconfig
           chmod +x scripts/build.sh
           ./scripts/build.sh 2>&1 | tee "$GITHUB_WORKSPACE/build.log"
 
+      - name: Download anykernel.zip
+        run: |
+          wget -q https://github.com/gyabii/kernel_samsung_sm8550-common/releases/download/anykernel/anykernel.zip
+
       - name: Package kernel
         run: |
-          # Copy Image.gz to anykernel
+          set -eux
           unzip -o anykernel.zip -d anykernel
           cp "${OUT_DIR}/arch/arm64/boot/Image.gz" anykernel/
-          
-          # Add runtime performance scripts to anykernel
-          cp sm8550_ultra_perf_runtime.sh anykernel/
-          cp sm8550_perf_runtime.sh anykernel/
-          cp sm8550_benchmark_mode.sh anykernel/
-          cp sm8550_restore_normal.sh anykernel/
-          cp kernel_cmdline_perf.txt anykernel/
-          
-          # Create flashable zip
+          cp sm8550_ultra_perf_runtime.sh anykernel/ 2>/dev/null || true
+          cp sm8550_perf_runtime.sh anykernel/ 2>/dev/null || true
+          cp sm8550_benchmark_mode.sh anykernel/ 2>/dev/null || true
+          cp sm8550_restore_normal.sh anykernel/ 2>/dev/null || true
+          cp kernel_cmdline_perf.txt anykernel/ 2>/dev/null || true
           cd anykernel
-          zip -r9 "../kernel-maxperf-${{ github.sha }}.zip" . -x "*.git*" -x "README*" -x "*.zip"
+          zip -r9 "../kernel-sm8550-perf-${{ github.sha }}.zip" . -x "*.git*" -x "README*" -x "*.zip"
           cd ..
-          
-          echo "KERNEL_ZIP=kernel-maxperf-${{ github.sha }}.zip" >> $GITHUB_ENV
+          echo "KERNEL_ZIP=kernel-sm8550-perf-${{ github.sha }}.zip" >> $GITHUB_ENV
 
       - name: Upload kernel artifact
         if: ${{ inputs.upload_artifact }}
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-maxperf-${{ github.sha }}
-          path: kernel-maxperf-*.zip
+          name: kernel-sm8550-perf-${{ github.sha }}
+          path: kernel-sm8550-perf-*.zip
           retention-days: 30
 
       - name: Create release
         if: ${{ inputs.upload_release }}
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: maxperf-${{ github.run_number }}
-          name: "SM8550 Max Performance Kernel #${{ github.run_number }}"
+          tag_name: sm8550-perf-${{ github.run_number }}
+          name: "SM8550 Max Performance (safe defconfig)"
           body: |
-            **Maximum Performance Build for SM8550 (Snapdragon 8 Gen 2)**
-            
-            Build: `${{ github.sha }}`
-            
-            **Optimizations Applied:**
-            - Kernel config: UCLAMP=20, THP=always, ZSTD zram/zswap, Kyber I/O, RCU boost=100
-            - Compiler: -O3, Thin LTO, fast-math, Cortex-X3 tuned, MLGO
-            - Runtime: Ultra perf script included in zip
-            - Thermal: Userspace governor, raised thresholds
-            
-            **Included in zip:**
-            - `Image.gz` - Kernel image
-            - `sm8550_ultra_perf_runtime.sh` - Comprehensive runtime tuning
-            - `sm8550_benchmark_mode.sh` - Nuclear benchmark mode
-            - `sm8550_restore_normal.sh` - Restore safe operation
-            - `kernel_cmdline_perf.txt` - Boot parameters
-          files: kernel-maxperf-*.zip
+            # SM8550 Max Performance Build
+
+            Built from branch `android13-5.15` with the fixed `sm8550_perf_defconfig`.
+
+            ## Performance flags used (safe, no -ffast-math)
+
+            - `-O3`, Thin LTO, `-march=armv9-a`
+            - Loop unroll/peel, SLP vectorize, devirtualize
+            - Clang 17 with BOLT support
+
+            ## Safe defconfig tweaks (verified at build time)
+
+            - UCLAMP_BUCKETS_COUNT, SCHED_THERMAL_PRESSURE, ENERGY_MODEL
+            - SCHEDUTIL + PERFORMANCE governors
+            - ZRAM/ZSWAP with ZSTD, FRONTSWAP
+            - Kyber I/O scheduler
+            - TRANSPARENT_HUGEPAGE_MADVISE (not always)
+
+            ## Removed (caused boot failure)
+
+            See commit `58925b367` on branch `fix/perf-boot-recovery`.
+          files: kernel-sm8550-perf-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
