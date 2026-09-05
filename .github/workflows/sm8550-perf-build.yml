@@ -116,17 +116,29 @@ jobs:
           make O=out ARCH=arm64 ${KERNEL_DEFCONFIG}
           make O=out ARCH=arm64 olddefconfig
           echo
-          echo "=== Safe tweaks that should be ENABLED ==="
-          for cfg in UCLAMP_BUCKETS_COUNT SCHED_THERMAL_PRESSURE ENERGY_MODEL \
-                     CPU_FREQ_DEFAULT_GOV_SCHEDUTIL CPU_FREQ_GOV_PERFORMANCE \
-                     ZRAM_DEF_COMP_ZSTD FRONTSWAP ZSWAP MQ_IOSCHED_KYBER \
-                     TRANSPARENT_HUGEPAGE_MADVISE; do
-            if grep -q "^CONFIG_${cfg}=y" out/.config; then
-              echo "  OK    CONFIG_${cfg}=y"
-            else
-              echo "  MISS  CONFIG_${cfg}=y  (safe tweak not set)"
-            fi
-          done
+                    echo "=== Verifying safe tweaks are ENABLED ==="
+                    # Check each config appropriately (some are boolean, some are numeric/choice)
+                    for cfg in UCLAMP_BUCKETS_COUNT SCHED_THERMAL_PRESSURE ENERGY_MODEL \
+                               CPU_FREQ_DEFAULT_GOV_SCHEDUTIL CPU_FREQ_GOV_PERFORMANCE \
+                               ZRAM_DEF_COMP_ZSTD FRONTSWAP ZSWAP MQ_IOSCHED_KYBER \
+                               TRANSPARENT_HUGEPAGE_MADVISE; do
+                      case "$cfg" in
+                        UCLAMP_BUCKETS_COUNT)
+                          if grep -q "^CONFIG_${cfg}=" out/.config; then
+                            echo "  OK    CONFIG_${cfg} is set"
+                          else
+                            echo "  MISS  CONFIG_${cfg} not set  (safe tweak missing)"
+                          fi
+                          ;;
+                        ZSWAP|MQ_IOSCHED_KYBER|FRONTSWAP|ENERGY_MODEL|SCHED_THERMAL_PRESSURE|CPU_FREQ_DEFAULT_GOV_SCHEDUTIL|CPU_FREQ_GOV_PERFORMANCE|ZRAM_DEF_COMP_ZSTD|TRANSPARENT_HUGEPAGE_MADVISE)
+                          if grep -q "^CONFIG_${cfg}=y" out/.config; then
+                            echo "  OK    CONFIG_${cfg}=y"
+                          else
+                            echo "  MISS  CONFIG_${cfg}=y  (safe tweak not set)"
+                          fi
+                          ;;
+                      esac
+                    done
           echo
           echo "=== Boot-breakers that should be DISABLED ==="
           BREAK=0
