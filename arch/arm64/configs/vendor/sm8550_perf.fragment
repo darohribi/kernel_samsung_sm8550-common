@@ -5,7 +5,7 @@
 # SCHEDULER / EAS / UCLAMP
 # =========================================================================
 # CONFIG_SCHED_WALT=y  # DISABLED: not in GKI common (downstream only)
-CONFIG_UCLAMP_BUCKETS_COUNT=40
+CONFIG_UCLAMP_BUCKETS_COUNT=20
 CONFIG_SCHED_THERMAL_PRESSURE=y
 CONFIG_SCHED_INFO=y
 CONFIG_SCHEDSTATS=y
@@ -61,10 +61,10 @@ CONFIG_RCU_BOOST_PRIO=99
 CONFIG_RCU_NOCB_CPU_DEFAULT_ALL=y
 
 # =========================================================================
-# TRANSPARENT HUGEPAGES
+# TRANSPARENT HUGEPAGES (madvise for GKI boot-safe)
 # =========================================================================
-CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS=y
-# CONFIG_TRANSPARENT_HUGEPAGE_MADVISE is not set
+# CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
 
 # =========================================================================
 # DEBUG / OVERHEAD REDUCTION
