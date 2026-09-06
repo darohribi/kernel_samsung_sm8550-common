@@ -5,16 +5,16 @@
 set -euo pipefail
 
 # These globals are filled in by mspv2_detect_soc.
+# shellcheck disable=SC2034
 MSPV2_POLICIES=()
 MSPV2_BIG_POLICY=""
+# shellcheck disable=SC2034
 MSPV2_LITTLE_POLICIES=()
-MSPV2_BIG_CPUS=()
 
 # mspv2_detect_soc - read cpufreq policies and identify clusters.
 mspv2_detect_soc() {
     MSPV2_POLICIES=()
     MSPV2_LITTLE_POLICIES=()
-    MSPV2_BIG_CPUS=()
 
     for policy in /sys/devices/system/cpu/cpufreq/policy*; do
         [ -d "$policy" ] || continue

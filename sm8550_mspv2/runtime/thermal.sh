@@ -35,12 +35,9 @@ if [ -z "$SKIN_ZONE" ]; then
 fi
 [ -n "$SKIN_ZONE" ] || { WARN "No thermal zones found; exiting"; exit 0; }
 
-log "Watching skin zone: $SKIN_ZONE ($(cat "$SKIN_ZONE/type" 2>/dev/null))"
-
 # -------------------------------------------------------------------------
 # Per-zone adjustment functions
 # -------------------------------------------------------------------------
-perf_level=0   # 0=normal, 1=moderate, 2=high, 3=very high, 4=critical
 last_level=-1
 
 apply_perf_level() {
@@ -90,11 +87,6 @@ log "Thresholds (mC): <40000 L0, 40000-42000 L1, 42000-44000 L2, 44000-45000 L3,
 
 while true; do
     temp_mc=$(cat "$SKIN_ZONE/temp" 2>/dev/null || echo 0)
-    # Use kernel vendor safety if a trip fires (don't override critical)
-    if [ -d "$SKIN_ZONE" ] && [ -f "$SKIN_ZONE/trip_point_0_temp" ]; then
-        # if the kernel has already tripped, don't fight it
-        mode=$(cat "$SKIN_ZONE/mode" 2>/dev/null || echo "")
-    fi
 
     if   [ "$temp_mc" -lt 40000 ]; then apply_perf_level 0
     elif [ "$temp_mc" -lt 42000 ]; then apply_perf_level 1

@@ -9,7 +9,6 @@ log() { echo "[mspv2-bench] $*"; }
 log "Frequencies:"
 for policy in /sys/devices/system/cpu/cpufreq/policy*; do
     name=$(basename "$policy")
-    min=$(cat "$policy/scaling_min_freq" 2>/dev/null || echo "?")
     cur=$(cat "$policy/scaling_cur_freq" 2>/dev/null || echo "?")
     max=$(cat "$policy/scaling_max_freq" 2>/dev/null || echo "?")
     gov=$(cat "$policy/scaling_governor" 2>/dev/null || echo "?")

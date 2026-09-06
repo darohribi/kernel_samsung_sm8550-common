@@ -74,9 +74,8 @@ done
 # 5. cpuidle - keep TEO governor, do NOT permanently disable deep C-states
 # -------------------------------------------------------------------------
 log "Setting cpuidle governor to TEO..."
-for gov in /sys/devices/system/cpu/cpuidle/current_governor; do
-    [ -w "$gov" ] && echo teo > "$gov" 2>/dev/null || true
-done
+gov=/sys/devices/system/cpu/cpuidle/current_governor
+[ -w "$gov" ] && echo teo > "$gov" 2>/dev/null || true
 
 # -------------------------------------------------------------------------
 # 6. Block I/O - measured defaults (no read_ahead_kb=0 globally)

@@ -34,17 +34,11 @@ done
 # CPU idle - only disable the DEEPEST state during the game,
 # leave others enabled so we keep thermal headroom.
 # -------------------------------------------------------------------------
-deepest_idle=""
-for idle in /sys/devices/system/cpu/cpu*/cpuidle/state*; do
-    [ -d "$idle" ] || continue
-    [ -w "$idle/disable" ] || continue
-done
 # Mark deep C-states (C6, C7) as disabled on all CPUs for the duration
 # of the game. They will be re-enabled by restore.sh on game end.
 for state in /sys/devices/system/cpu/cpu*/cpuidle/state*; do
     [ -d "$state" ] || continue
     [ -w "$state/disable" ] || continue
-    name=$(basename "$state")
     desc=$(cat "$state/desc" 2>/dev/null || echo "")
     case "$desc" in
         *"C6"*|*"C7"*|*"pc6"*|*"pc7"*)
@@ -56,7 +50,6 @@ done
 # -------------------------------------------------------------------------
 # GPU: performance governor + raise floor (NOT max)
 # -------------------------------------------------------------------------
-gpu_devfreq=$(ls -d /sys/class/devfreq/* 2>/dev/null | head -1 || true)
 # No permanent force_clk_on / force_bus_on. Those defeat dynamic power.
 
 # -------------------------------------------------------------------------

@@ -28,10 +28,6 @@ MSPV2_IRQ_MAP=(
 
 mspv2_detect_irqs() {
     [ -r /proc/interrupts ] || return 0
-    header=$(head -1 /proc/interrupts)
-    # build CPU index list from header (CPU0 CPU1 ... CPU7)
-    cpu_count=$(echo "$header" | awk '{print NF-1}')
-
     while read -r line; do
         irq=$(echo "$line" | awk '{print $1}' | tr -d ':')
         [ -z "$irq" ] && continue
