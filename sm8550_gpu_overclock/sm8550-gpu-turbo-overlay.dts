@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device-tree overlay: sm8550-gpu-turbo-overlay.dts
+ *
+ * Apply on top of sm8550.dtsi to extend the GPU OPP table with turbo
+ * frequencies for the Adreno 740 on SM8550 (Snapdragon 8 Gen 2).
+ *
+ * Compile:  dtc -@ -I dts -O dtb -o sm8550-gpu-turbo-overlay.dtbo \
+ *               sm8550-gpu-turbo-overlay.dts
+ * Install:  place in /vendor/overlays/ and add to board's overlay config
+ *           (e.g. fstab.qcom or device.mk)
+ *
+ * NOTE: This overlay adds OPPs directly to the device tree.  The
+ * sm8550_gpu_oc module is an alternative (adds them at runtime).
+ * Use one or the other — not both for the same frequency.
+ *
+ * Stock SM8550 GPU frequencies (Adreno 740):
+ *   514 / 575 / 681 / 767 MHz
+ *
+ * Turbo OPPs added:
+ *   820 MHz  (~7% above stock max)
+ *   875 MHz  (~14% above stock max)  — requires adequate cooling
+ */
+
+/dts-v1/;
+/plugin/;
+
+/ {
+	/* Overlay fragment identifier */
+	compatible = "qcom,sm8550";
+	fragment@0 {
+		target-path = "/";
+		__overlay__ {
+			/* Empty — we target GPU node by path in fragment@1 */
+		};
+	};
+
+	fragment@1 {
+		target = <&gpu_opp_table>;
+		__overlay__ {
+
+gpu_opp_table: operating-points-v2-turbo {
+			/* Stock OPPs retained */
+			opp-514000000 {
+				opp-hz = /bits/ 64 <514000000>;
+				opp-level = <0>;
+				opp-supported-hw = <0xff>;
+				status = "okay";
+			};
+			opp-575000000 {
+				opp-hz = /bits/ 64 <575000000>;
+				opp-level = <1>;
+				opp-supported-hw = <0xff>;
+				status = "okay";
+			};
+			opp-681000000 {
+				opp-hz = /bits/ 64 <681000000>;
+				opp-level = <2>;
+				opp-supported-hw = <0xff>;
+				status = "okay";
+			};
+			opp-767000000 {
+				opp-hz = /bits/ 64 <767000000>;
+				opp-level = <3>;
+				opp-supported-hw = <0xff>;
+				status = "okay";
+			};
+
+			/*
+			 * TURBO OPPs — only available on speed_bin=0 (standard)
+			 * These push the Adreno 740 beyond stock 767 MHz.
+			 * Thermal throttling will engage if SoC temperature exceeds
+			 * the configured trip point.
+			 */
+			opp-820000000 {
+				opp-hz = /bits/ 64 <820000000>;
+				opp-level = <4>;
+				opp-supported-hw = <0x01>;
+				opp-peak-kBps = <8000000>;
+				status = "okay";
+			};
+			opp-875000000 {
+				opp-hz = /bits/ 64 <875000000>;
+				opp-level = <5>;
+				opp-supported-hw = <0x01>;
+				opp-peak-kBps = <8000000>;
+				status = "okay";
+			};
+		};
+	};
+};

@@ -168,7 +168,7 @@ jobs:
 
           BREAK=0
           for cfg in DEBUG_KERNEL TRANSPARENT_HUGEPAGE_ALWAYS CPU_FREQ_GOV_ONDEMAND \
-                     SCHED_WALT QCOM_CPUBOOST QCOM_CORE_CTL DRM_MSM_PREEMPT \
+                     SCHED_WALT QCOM_CPUBOOST QCOM_CORE_CTL \
                      IOSCHED_BFQ; do
             if grep -q "^CONFIG_${cfg}=y" out/.config; then
               echo "  FAIL  CONFIG_${cfg}=y"

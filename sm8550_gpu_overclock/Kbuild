@@ -1,0 +1,1 @@
+obj-y += sm8550_gpu_oc.o

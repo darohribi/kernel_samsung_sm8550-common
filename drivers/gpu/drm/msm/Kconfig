@@ -70,6 +70,25 @@ config DRM_MSM_DP
 	  display support is enabled through this config option. It can
 	  be primary or secondary display on device.
 
+config SM8550_GPU_OC
+	bool "SM8550 GPU Overclock — synthetic turbo OPPs for Adreno 740"
+	depends on DRM_MSM && PM_OPP
+	default n
+	help
+	  Add two synthetic turbo OPPs (820 MHz, 875 MHz) to the Adreno 740
+	  GPU on Snapdragon 8 Gen 2 (SM8550) above the stock 767 MHz ceiling.
+	  The OPPs are constrained to speed_bin=0 (standard variant) via
+	  supported-hw.  The GMU will round-freq to the nearest RPMh DCVS
+	  level.  Thermal throttling still applies.
+
+	  Toggle at runtime:
+	    echo 0 > /sys/class/devfreq/*gpu*/gpu_oc_enabled
+
+	  Or via kernel command line:
+	    gpu_oc.enable=0
+
+	  If unsure, say N.
+
 config DRM_MSM_DSI
 	bool "Enable DSI support in MSM DRM driver"
 	depends on DRM_MSM

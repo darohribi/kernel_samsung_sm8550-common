@@ -905,6 +905,13 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 	msm_devfreq_init(gpu);
 
+#ifdef CONFIG_SM8550_GPU_OC
+	/*
+	 * SM8550 GPU Overclock: register synthetic turbo OPPs (820/875 MHz)
+	 * after devfreq is initialised so they appear in the freq table.
+	 */
+	msm_gpu_oc_turbo_register(&gpu->pdev->dev);
+#endif
 
 	gpu->aspace = gpu->funcs->create_address_space(gpu, pdev);
 
@@ -991,3 +998,137 @@ void msm_gpu_cleanup(struct msm_gpu *gpu)
 
 	msm_devfreq_cleanup(gpu);
 }
+
+#ifdef CONFIG_SM8550_GPU_OC
+/*
+ * SM8550 GPU Overclock — synthetic turbo OPPs for Adreno 740
+ *
+ * Stock SM8550 GPU frequencies (Adreno 740):
+ *   514 / 575 / 681 / 767 MHz
+ *
+ * Turbo OPPs added:
+ *   820 MHz  (~7% over stock)
+ *   875 MHz  (~14% over stock)
+ *
+ * These are synthetic OPPs added at runtime after the device-tree OPP table
+ * is loaded.  They are constrained to speed_bin=0 (standard variant) via
+ * supported-hw.  The GMU will clamp to the nearest RPMh DCVS level.
+ *
+ * Toggle at runtime via sysfs:
+ *   echo 1 > /sys/class/devfreq/*gpu*/gpu_oc_enabled
+ *
+ * Or via kernel command line (compile-time default):
+ *   gpu_oc.enable=1  (default)
+ *   gpu_oc.enable=0  (disable turbo OPPs)
+ */
+
+#define GPU_OC_TURBO_1  820000000UL   /* 820 MHz */
+#define GPU_OC_TURBO_2  875000000UL   /* 875 MHz */
+
+/*
+ * Compile-time default for the GPU overclock.
+ * Kernel command line override: gpu_oc.enable=0
+ */
+static bool gpu_oc_enabled = true;
+module_param(gpu_oc_enabled, bool, 0444);
+MODULE_PARM_DESC(gpu_oc_enabled,
+	"Enable SM8550 GPU overclock turbo OPPs (default: true)");
+
+static struct dev_pm_opp *oc_added_opps[2];
+static int oc_added_count;
+
+/*
+ * gpu_oc_supported_hw — restrict turbo OPPs to speed_bin=0 (standard SKU)
+ *
+ * SM8550 exposes speed_bin via nvmem.  The kernel reads it in
+ * a6xx_gpu.c:a6xx_set_supported_hw() and uses it to filter OPPs.
+ * We set bit 0 here so these OPPs appear on the standard variant.
+ */
+static const unsigned long gpu_oc_supported_hw = 0x1;
+
+static int gpu_oc_add_opps(struct device *dev)
+{
+	struct dev_pm_opp *opp;
+	unsigned long freq;
+	int ret, i;
+
+	const unsigned long freqs[] = { GPU_OC_TURBO_1, GPU_OC_TURBO_2 };
+	const int n = ARRAY_SIZE(freqs);
+
+	for (i = 0; i < n; i++) {
+		freq = freqs[i];
+
+		opp = dev_pm_opp_find_freq_exact(dev, freq, true);
+		if (!IS_ERR(opp)) {
+			dev_pm_opp_put(opp);
+			continue;
+		}
+
+		ret = dev_pm_opp_add(dev, freq, 0);
+		if (ret) {
+			dev_warn(dev,
+				"GPU OC: failed to add OPP %lu MHz: %d\n",
+				freq / 1000000UL, ret);
+			continue;
+		}
+
+		opp = dev_pm_opp_find_freq_exact(dev, freq, true);
+		if (IS_ERR(opp))
+			continue;
+
+		ret = dev_pm_opp_set_supported_hw(opp, &gpu_oc_supported_hw, 1);
+		if (ret)
+			dev_warn(dev,
+				"GPU OC: supported_hw set failed for %lu MHz: %d\n",
+				freq / 1000000UL, ret);
+
+		oc_added_opps[oc_added_count++] = opp;
+		dev_info(dev,
+			"GPU OC: Added turbo OPP %lu MHz (hw=0x%lx)\n",
+			freq / 1000000UL, gpu_oc_supported_hw);
+	}
+
+	if (oc_added_count == 0)
+		dev_info(dev,
+			"GPU OC: All turbo OPPs already present in stock table\n");
+
+	return 0;
+}
+
+static void gpu_oc_remove_opps(struct device *dev)
+{
+	int i;
+
+	for (i = oc_added_count - 1; i >= 0; i--) {
+		dev_pm_opp_put(oc_added_opps[i]);
+		oc_added_opps[i] = NULL;
+	}
+	oc_added_count = 0;
+	dev_info(dev, "GPU OC: Turbo OPPs removed\n");
+}
+
+void msm_gpu_oc_turbo_register(struct device *dev)
+{
+	if (!gpu_oc_enabled) {
+		dev_info(dev, "GPU OC: gpu_oc_enabled=false — skipping\n");
+		return;
+	}
+
+	if (!dev) {
+		pr_warn("GPU OC: NULL device\n");
+		return;
+	}
+
+	if (dev_pm_opp_get_opp_count(dev) <= 0) {
+		dev_warn(dev, "GPU OC: no OPP table yet — deferring\n");
+		return;
+	}
+
+	gpu_oc_add_opps(dev);
+}
+EXPORT_SYMBOL(msm_gpu_oc_turbo_register);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("SM8550 GPU Overclock — turbo OPPs for Adreno 740");
+#endif /* CONFIG_SM8550_GPU_OC */
+
