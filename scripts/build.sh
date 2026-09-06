@@ -90,6 +90,18 @@ build_kernel() {
   make -j"$(nproc --all)" O="$OUT_DIR" ARCH=arm64 CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
        "$KERNEL_DEFCONFIG" || err "Defconfig failed"
 
+  # Keep the performance configuration validated by the CI workflow.
+  if grep -q '^CONFIG_DEBUG_KERNEL=y$' "$OUT_DIR/.config"; then
+    info "Disabling CONFIG_DEBUG_KERNEL for performance build"
+    sed -i 's/^CONFIG_DEBUG_KERNEL=y$/# CONFIG_DEBUG_KERNEL is not set/' \
+        "$OUT_DIR/.config"
+  fi
+
+  # Sanity check before compilation.
+  if grep -q '^CONFIG_DEBUG_KERNEL=y$' "$OUT_DIR/.config"; then
+    err "CONFIG_DEBUG_KERNEL is still enabled"
+  fi
+
   make -j"$(nproc --all)" O="$OUT_DIR" ARCH=arm64 CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
        || err "Build failed"
 

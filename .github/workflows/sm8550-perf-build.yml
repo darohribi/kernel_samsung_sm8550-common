@@ -110,53 +110,76 @@ jobs:
 
       - name: Validate performance defconfig
         run: |
-          set -e
+          set -euo pipefail
+
           CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG}"
-          test -f "$CONFIG_FILE" || (echo "ERROR: $CONFIG_FILE not found"; exit 1)
-          make O=out ARCH=arm64 ${KERNEL_DEFCONFIG}
-          # Force DEBUG_KERNEL=n after defconfig (EMBEDDED=y → EXPERT → DEBUG_KERNEL via select)
-          sed -i 's/^CONFIG_DEBUG_KERNEL=y$/# CONFIG_DEBUG_KERNEL is not set/' out/.config
+          test -f "$CONFIG_FILE" || {
+            echo "ERROR: $CONFIG_FILE not found"
+            exit 1
+          }
+
+          rm -rf out
+          mkdir -p out
+
+          # Generate the defconfig.
+          make O=out ARCH=arm64 "${KERNEL_DEFCONFIG}"
+
+          # DEBUG_KERNEL can become enabled by the resolved Kconfig state.
+          # Force it off for this performance build.
+          sed -i \
+            's/^CONFIG_DEBUG_KERNEL=y$/# CONFIG_DEBUG_KERNEL is not set/' \
+            out/.config
+
+          # Do NOT run olddefconfig here, because it may resolve DEBUG_KERNEL=y again.
           echo
-                    echo "=== Verifying safe tweaks are ENABLED ==="
-                    # Check each config appropriately (some are boolean, some are numeric/choice)
-                    for cfg in UCLAMP_BUCKETS_COUNT SCHED_THERMAL_PRESSURE ENERGY_MODEL \
-                               CPU_FREQ_DEFAULT_GOV_SCHEDUTIL CPU_FREQ_GOV_PERFORMANCE \
-                               ZRAM_DEF_COMP_ZSTD FRONTSWAP ZSWAP MQ_IOSCHED_KYBER \
-                               TRANSPARENT_HUGEPAGE_MADVISE; do
-                      case "$cfg" in
-                        UCLAMP_BUCKETS_COUNT)
-                          if grep -q "^CONFIG_${cfg}=" out/.config; then
-                            echo "  OK    CONFIG_${cfg} is set"
-                          else
-                            echo "  MISS  CONFIG_${cfg} not set  (safe tweak missing)"
-                          fi
-                          ;;
-                        ZSWAP|MQ_IOSCHED_KYBER|FRONTSWAP|ENERGY_MODEL|SCHED_THERMAL_PRESSURE|CPU_FREQ_DEFAULT_GOV_SCHEDUTIL|CPU_FREQ_GOV_PERFORMANCE|ZRAM_DEF_COMP_ZSTD|TRANSPARENT_HUGEPAGE_MADVISE)
-                          if grep -q "^CONFIG_${cfg}=y" out/.config; then
-                            echo "  OK    CONFIG_${cfg}=y"
-                          else
-                            echo "  MISS  CONFIG_${cfg}=y  (safe tweak not set)"
-                          fi
-                          ;;
-                      esac
-                    done
+          echo "=== Verifying safe tweaks are ENABLED ==="
+
+          for cfg in UCLAMP_BUCKETS_COUNT SCHED_THERMAL_PRESSURE ENERGY_MODEL \
+                     CPU_FREQ_DEFAULT_GOV_SCHEDUTIL CPU_FREQ_GOV_PERFORMANCE \
+                     ZRAM_DEF_COMP_ZSTD FRONTSWAP ZSWAP MQ_IOSCHED_KYBER \
+                     TRANSPARENT_HUGEPAGE_MADVISE; do
+            case "$cfg" in
+              UCLAMP_BUCKETS_COUNT)
+                if grep -q "^CONFIG_${cfg}=" out/.config; then
+                  echo "  OK    CONFIG_${cfg} is set"
+                else
+                  echo "  MISS  CONFIG_${cfg} not set"
+                  exit 1
+                fi
+                ;;
+              *)
+                if grep -q "^CONFIG_${cfg}=y" out/.config; then
+                  echo "  OK    CONFIG_${cfg}=y"
+                else
+                  echo "  MISS  CONFIG_${cfg}=y"
+                  exit 1
+                fi
+                ;;
+            esac
+          done
+
           echo
           echo "=== Boot-breakers that should be DISABLED ==="
+
           BREAK=0
           for cfg in DEBUG_KERNEL TRANSPARENT_HUGEPAGE_ALWAYS CPU_FREQ_GOV_ONDEMAND \
                      SCHED_WALT QCOM_CPUBOOST QCOM_CORE_CTL DRM_MSM_PREEMPT; do
             if grep -q "^CONFIG_${cfg}=y" out/.config; then
-              echo "  FAIL  CONFIG_${cfg}=y  (boot-breaker IS set)"
+              echo "  FAIL  CONFIG_${cfg}=y"
               BREAK=1
             else
               echo "  OK    CONFIG_${cfg} not set"
             fi
           done
+
           if [ "$BREAK" = "1" ]; then
-            echo
-            echo "ERROR: boot-breaker config options are enabled. Aborting build."
+            echo "ERROR: boot-breaker config options are enabled."
             exit 1
           fi
+
+          echo
+          echo "=== Final DEBUG_KERNEL state ==="
+          grep -E '^CONFIG_DEBUG_KERNEL|^# CONFIG_DEBUG_KERNEL' out/.config || true
 
       - name: Build kernel
         run: |
