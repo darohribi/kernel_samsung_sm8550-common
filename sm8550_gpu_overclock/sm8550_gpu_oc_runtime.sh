@@ -29,6 +29,8 @@ readonly MAX_FREQ_STOCK=767000000
 readonly TURBO_FREQ_1=820000000
 readonly TURBO_FREQ_2=875000000
 
+readonly KGSL_PATH="${KGSL_PATH:-/sys/class/kgsl/kgsl-3d0}"
+
 # Thresholds for devfreq governor tuning
 readonly ONDEMAND_POLLING_MS=20      # faster polling = faster ramp-up
 readonly ONDEMAND_UPTHRESH=40        # %busy to trigger freq up
@@ -97,6 +99,48 @@ is_turbo_enabled() {
     (( cur >= TURBO_FREQ_1 ))
 }
 
+# --- KGSL powerlevel helpers (legacy sysfs path, from encore_profiler) ---
+# The KGSL sysfs throttle path coexists with devfreq.
+# Setting both min/max to level 0 forces the GPU to max pwrlevel.
+# This is the "snapdragon_force_kgsl_pwrlevel 1" equivalent from Rem01Gaming.
+
+kgsl_get_num_pwrlevels() {
+    cat "${KGSL_PATH}/num_pwrlevels" 2>/dev/null || echo "0"
+}
+
+kgsl_set_pwrlevel() {
+    # $1 = mode: 0=default (stock), 1=performance (force max pwrlevel)
+    local mode="$1"
+    case "$mode" in
+        0) # Restore stock: min=default, max=stock
+            echo "$(kgsl_get_num_pwrlevels)" > "${KGSL_PATH}/min_pwrlevel" 2>/dev/null || true
+            echo "0" > "${KGSL_PATH}/max_pwrlevel" 2>/dev/null || true
+            ;;
+        1) # Performance: force max pwrlevel (level 0 = highest)
+            echo "0" > "${KGSL_PATH}/min_pwrlevel" 2>/dev/null || true
+            echo "0" > "${KGSL_PATH}/max_pwrlevel" 2>/dev/null || true
+            ;;
+    esac
+}
+
+# --- Thermal zone helpers ---
+get_gpu_temp() {
+    local temp=""
+    for tz in /sys/class/thermal/thermal_zone*; do
+        local type
+        type=$(cat "$tz/type" 2>/dev/null || echo "")
+        case "$type" in
+            gpu*|GPU*) temp=$(cat "$tz/temp" 2>/dev/null || echo ""); break ;;
+        esac
+    done
+    echo "${temp:-0}"
+}
+
+# Thermal thresholds (mC)
+readonly TEMP_YELLOW=70000   # 70°C — governor tuning
+readonly TEMP_RED=85000      # 85°C — reduce to stock
+readonly TEMP_CRITICAL=95000 # 95°C — force stock + warn
+
 # --- Actions ---
 do_status() {
     local gpath
@@ -108,12 +152,32 @@ do_status() {
     governor=$(get_governor "$gpath")
     avail_freqs=$(get_available_freqs "$gpath")
 
+    local num_pwl kgsl_min kgsl_max
+    num_pwl=$(kgsl_get_num_pwrlevels)
+    kgsl_min=$(cat "${KGSL_PATH}/min_pwrlevel" 2>/dev/null || echo "?")
+    kgsl_max=$(cat "${KGSL_PATH}/max_pwrlevel" 2>/dev/null || echo "?")
+
+    local temp
+    temp=$(get_gpu_temp)
+    local temp_c
+    temp_c=$(( temp / 1000 ))
+    local temp_flag=""
+    if (( temp >= TEMP_CRITICAL )); then
+        temp_flag=" \033[1;31m⚠ CRITICAL\033[0m"
+    elif (( temp >= TEMP_RED )); then
+        temp_flag=" \033[1;33m⚠ HOT\033[0m"
+    elif (( temp >= TEMP_YELLOW )); then
+        temp_flag=" \033[1;33m⚠ warm\033[0m"
+    fi
+
     echo ""
     echo "  === SM8550 GPU Overclock Status ==="
     echo "  Devfreq path  : $gpath"
     echo "  Governor      : $governor"
     echo "  Current freq  : $(( cur_freq / 1000000 )) MHz"
     echo "  Max freq      : $(( max_freq / 1000000 )) MHz"
+    echo "  GPU temp      : ${temp_c}°C${temp_flag}"
+    echo "  KGSL pwrlevels: $num_pwl total | min=$kgsl_min max=$kgsl_max"
     echo ""
     echo "  Available frequencies (MHz):"
     echo "$avail_freqs" | tr ' ' '\n' | while read -r f; do
@@ -144,7 +208,19 @@ do_enable() {
 
     log "Enabling GPU overclock..."
 
-    # 1. Switch to userspace governor so we can force a specific frequency
+    # Pre-flight: check GPU temperature
+    local temp
+    temp=$(get_gpu_temp)
+    if (( temp >= TEMP_RED )); then
+        warn "GPU temperature is ${temp}mC (${temp}00°C) — thermal throttling likely."
+        warn "Proceeding anyway; results may be limited."
+    fi
+
+    # 1. Lock KGSL powerlevel (legacy path, from encore_profiler / Rem01Gaming)
+    #    This prevents the legacy throttle sysfs from fighting devfreq.
+    kgsl_set_pwrlevel 1
+
+    # 2. Switch to userspace governor so we can force a specific frequency
     echo "userspace" > "$gpath/governor" || {
         err "Failed to set userspace governor (need root)"
         return 1
@@ -192,6 +268,7 @@ do_enable() {
     # 5. Switch back to simple_ondemand for adaptive behaviour
     echo "simple_ondemand" > "$gpath/governor"
     log "Governor set to: simple_ondemand (adaptive)"
+    log "KGSL powerlevel: locked to max (level 0)"
     log "Done."
 }
 
@@ -202,6 +279,9 @@ do_disable() {
     check_root || return 1
 
     log "Disabling GPU overclock (restoring stock max: $(( MAX_FREQ_STOCK / 1000000 )) MHz)..."
+
+    # Restore KGSL powerlevel (legacy path)
+    kgsl_set_pwrlevel 0
 
     echo "$MAX_FREQ_STOCK" > "$gpath/max_freq" 2>/dev/null || true
     echo "simple_ondemand" > "$gpath/governor" 2>/dev/null || true
