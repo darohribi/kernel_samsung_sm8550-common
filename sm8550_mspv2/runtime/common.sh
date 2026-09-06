@@ -106,14 +106,26 @@ log "Thermal: keeping vendor framework on (only adjusting known performance zone
 # are left to vendor defaults.
 
 # -------------------------------------------------------------------------
-# 9. Devfreq - performance governor with floor (not always-maximum)
+# 9. Devfreq - selective, not blanket performance
 # -------------------------------------------------------------------------
-log "Setting devfreq governors (performance, with floor)..."
+# Only touch GPU-related devfreq domains. Leave DDR, memory, and other
+# Qualcomm internal devfreq to vendor defaults. Changing everything to
+# performance governor is still too broad even if it is better than
+# maxing every frequency.
+log "Setting devfreq governors (GPU domains only)..."
 for devfreq in /sys/class/devfreq/*; do
     [ -d "$devfreq" ] || continue
-    [ -w "$devfreq/governor" ] && echo performance > "$devfreq/governor" 2>/dev/null || true
-    # Do NOT permanently set min_freq = max_freq. That defeats
-    # the purpose of devfreq. v2 leaves the floor at vendor default.
+    dev_name=$(basename "$devfreq")
+    # Only GPU-related devfreq: gpu, kgsl, mdss, etc.
+    # Leave memory-controller, DDR, NoC, etc. untouched.
+    case "$dev_name" in
+        *gpu*|*Gx*|*kgsl*|*mdss*|*mx*)
+            [ -w "$devfreq/governor" ] && echo performance > "$devfreq/governor" 2>/dev/null || true
+            ;;
+        *)
+            # Leave non-GPU devfreq at vendor default
+            ;;
+    esac
 done
 
 log "common.sh complete."

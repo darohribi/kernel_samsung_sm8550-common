@@ -1,0 +1,8 @@
+# SM8550 MSPv2 - system.prop
+# System-level properties for the module.
+
+# Disable debug logging for thermal-related kernel messages (reduces log spam)
+persist.logd.kernel=false
+
+# GPU renderer (optional, tune for your device)
+# debug.hwui.renderer=opengl
