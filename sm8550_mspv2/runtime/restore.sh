@@ -7,14 +7,18 @@ set -euo pipefail
 log() { echo "[mspv2-restore] $*"; }
 
 # -------------------------------------------------------------------------
-# UCLAMP - back to performance.sh baseline
+# UCLAMP - back to common.sh baseline
 # -------------------------------------------------------------------------
-[ -w /dev/cpuctl/top-app/uclamp.min ]     && echo 512 > /dev/cpuctl/top-app/uclamp.min
-[ -w /dev/cpuctl/top-app/uclamp.max ]     && echo 1024 > /dev/cpuctl/top-app/uclamp.max
+[ -w /dev/cpuctl/system/uclamp.min ]    && echo 128 > /dev/cpuctl/system/uclamp.min
+[ -w /dev/cpuctl/system/uclamp.max ]    && echo 1024 > /dev/cpuctl/system/uclamp.max
 [ -w /dev/cpuctl/foreground/uclamp.min ] && echo 256 > /dev/cpuctl/foreground/uclamp.min
 [ -w /dev/cpuctl/foreground/uclamp.max ] && echo 1024 > /dev/cpuctl/foreground/uclamp.max
 [ -w /dev/cpuctl/background/uclamp.min ]  && echo 0 > /dev/cpuctl/background/uclamp.min
 [ -w /dev/cpuctl/background/uclamp.max ]  && echo 512 > /dev/cpuctl/background/uclamp.max
+[ -w /dev/cpuctl/top-app/uclamp.min ]     && echo 512 > /dev/cpuctl/top-app/uclamp.min
+[ -w /dev/cpuctl/top-app/uclamp.max ]     && echo 1024 > /dev/cpuctl/top-app/uclamp.max
+[ -w /dev/cpuctl/rt/uclamp.min ]          && echo 768 > /dev/cpuctl/rt/uclamp.min
+[ -w /dev/cpuctl/rt/uclamp.max ]          && echo 1024 > /dev/cpuctl/rt/uclamp.max
 
 # -------------------------------------------------------------------------
 # schedutil - back to performance profile rates

@@ -52,6 +52,3 @@ mspv2_detect_irqs() {
         done
     done < <(tail -n +2 /proc/interrupts)
 }
-
-# Also place the per-IRQ discoverer in main by sourcing.
-mspv2_detect_irqs
