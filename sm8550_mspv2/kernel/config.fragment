@@ -1,0 +1,54 @@
+# SM8550 MSPv2 - Conservative kernel config additions
+# Applied on top of sm8550_perf_defconfig.
+# Only contains Kconfig that v2 needs and v1 was missing.
+
+# =========================================================================
+# Scheduler / EAS / UCLAMP
+# =========================================================================
+CONFIG_UCLAMP_BUCKETS_COUNT=40
+CONFIG_SCHED_THERMAL_PRESSURE=y
+CONFIG_ENERGY_MODEL=y
+CONFIG_SCHED_INFO=y
+# Keep SCHEDSTATS off in production (debug only)
+# CONFIG_SCHEDSTATS is not set
+
+# =========================================================================
+# CPUFreq
+# =========================================================================
+CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDUTIL=y
+CONFIG_CPU_FREQ_GOV_SCHEDUTIL=y
+CONFIG_CPU_FREQ_GOV_PERFORMANCE=y
+# CONFIG_CPU_FREQ_GOV_ONDEMAND is not set
+
+# =========================================================================
+# Memory / ZRAM / SWAP (measured, not extreme)
+# =========================================================================
+CONFIG_ZRAM_DEF_COMP_ZSTD=y
+CONFIG_ZSWAP=y
+CONFIG_ZSWAP_COMPRESSOR_DEFAULT_ZSTD=y
+CONFIG_FRONTSWAP=y
+
+# =========================================================================
+# I/O Scheduler
+# =========================================================================
+CONFIG_MQ_IOSCHED_KYBER=y
+# CONFIG_IOSCHED_BFQ is not set
+
+# =========================================================================
+# THP - default to madvise (not always)
+# =========================================================================
+CONFIG_TRANSPARENT_HUGEPAGE_MADVISE=y
+# CONFIG_TRANSPARENT_HUGEPAGE_ALWAYS is not set
+
+# =========================================================================
+# Production: no debug overhead
+# =========================================================================
+# CONFIG_DEBUG_KERNEL is not set
+# CONFIG_SCHED_DEBUG is not set
+
+# =========================================================================
+# Vendor-specific Qualcomm symbols stay in the vendor kernel,
+# NOT in GKI common. Do not add SCHED_WALT, QCOM_CPUBOOST,
+# QCOM_CORE_CTL, or DRM_MSM_PREEMPT here unless the downstream
+# Samsung kernel actually provides them.
+# =========================================================================
