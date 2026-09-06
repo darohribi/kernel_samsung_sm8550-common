@@ -62,9 +62,8 @@ disable_deepest_idle() {
             fi
         done
         if [ -n "$deepest" ] && [ -w "$deepest/disable" ]; then
-            local desc
+            local desc lat
             desc=$(cat "$deepest/desc" 2>/dev/null || echo "unknown")
-            local lat
             lat=$(cat "$deepest/exit_latency_us" 2>/dev/null || echo "?")
             echo 1 > "$deepest/disable" 2>/dev/null || true
             log "  $cpu_name: disabled deepest idle ($desc, exit_latency=${lat}us)"

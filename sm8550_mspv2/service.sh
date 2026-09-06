@@ -1,4 +1,4 @@
-#!/system/bin/sh
+#!/system/bin/bash
 # SM8550 MSPv2 - service.sh
 # Boot-time initialization for Magisk/KernelSU module.
 # Runs after /data is mounted.
@@ -11,13 +11,19 @@ LOG_FILE=/data/local/tmp/mspv2.log
 # Ensure log directory exists
 mkdir -p /data/local/tmp 2>/dev/null
 
+# Verify bash is available
+if [ ! -x /system/bin/bash ]; then
+    echo "[mspv2-service] ERROR: /system/bin/bash not found or not executable" >> "$LOG_FILE"
+    exit 1
+fi
+
 # Apply common baseline settings
 echo "[mspv2-service] $(date) Starting MSPv2 common.sh..." >> "$LOG_FILE"
-sh "$MODDIR/sm8550_mspv2/runtime/common.sh" >> "$LOG_FILE" 2>&1
+/system/bin/bash "$MODDIR/runtime/common.sh" >> "$LOG_FILE" 2>&1
 
 # Start thermal controller in background
 # The thermal controller is designed to run continuously.
 # It will adjust performance based on skin temperature.
-nohup sh "$MODDIR/sm8550_mspv2/runtime/thermal.sh" >> "$LOG_FILE" 2>&1 &
+nohup /system/bin/bash "$MODDIR/runtime/thermal.sh" >> "$LOG_FILE" 2>&1 &
 
 echo "[mspv2-service] $(date) MSPv2 started, thermal controller running in background." >> "$LOG_FILE"
