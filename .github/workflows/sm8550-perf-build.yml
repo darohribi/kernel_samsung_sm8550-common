@@ -114,7 +114,8 @@ jobs:
           CONFIG_FILE="arch/arm64/configs/${KERNEL_DEFCONFIG}"
           test -f "$CONFIG_FILE" || (echo "ERROR: $CONFIG_FILE not found"; exit 1)
           make O=out ARCH=arm64 ${KERNEL_DEFCONFIG}
-          make O=out ARCH=arm64 olddefconfig
+          # Force DEBUG_KERNEL=n after defconfig (EMBEDDED=y → EXPERT → DEBUG_KERNEL via select)
+          sed -i 's/^CONFIG_DEBUG_KERNEL=y$/# CONFIG_DEBUG_KERNEL is not set/' out/.config
           echo
                     echo "=== Verifying safe tweaks are ENABLED ==="
                     # Check each config appropriately (some are boolean, some are numeric/choice)
