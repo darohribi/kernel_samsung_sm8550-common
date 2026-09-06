@@ -3,9 +3,9 @@
 # Only contains Kconfig that v2 needs and v1 was missing.
 
 # =========================================================================
-# Scheduler / EAS / UCLAMP
+# Scheduler / EAS / UCLAMP (Kconfig max range is 20)
 # =========================================================================
-CONFIG_UCLAMP_BUCKETS_COUNT=40
+CONFIG_UCLAMP_BUCKETS_COUNT=20
 CONFIG_SCHED_THERMAL_PRESSURE=y
 CONFIG_ENERGY_MODEL=y
 CONFIG_SCHED_INFO=y

@@ -130,6 +130,11 @@ jobs:
             's/^CONFIG_DEBUG_KERNEL=y$/# CONFIG_DEBUG_KERNEL is not set/' \
             out/.config
 
+          # Force Kyber-only I/O scheduler (BFQ causes stalls on UFS).
+          sed -i \
+            's/^CONFIG_IOSCHED_BFQ=y$/# CONFIG_IOSCHED_BFQ is not set/' \
+            out/.config
+
           # Do NOT run olddefconfig here, because it may resolve DEBUG_KERNEL=y again.
           echo
           echo "=== Verifying safe tweaks are ENABLED ==="
@@ -163,7 +168,8 @@ jobs:
 
           BREAK=0
           for cfg in DEBUG_KERNEL TRANSPARENT_HUGEPAGE_ALWAYS CPU_FREQ_GOV_ONDEMAND \
-                     SCHED_WALT QCOM_CPUBOOST QCOM_CORE_CTL DRM_MSM_PREEMPT; do
+                     SCHED_WALT QCOM_CPUBOOST QCOM_CORE_CTL DRM_MSM_PREEMPT \
+                     IOSCHED_BFQ; do
             if grep -q "^CONFIG_${cfg}=y" out/.config; then
               echo "  FAIL  CONFIG_${cfg}=y"
               BREAK=1
