@@ -102,6 +102,13 @@ build_kernel() {
     err "CONFIG_DEBUG_KERNEL is still enabled"
   fi
 
+  # Disable BFQ I/O scheduler for Kyber-only (UFS performance)
+  if grep -q '^CONFIG_IOSCHED_BFQ=y$' "$OUT_DIR/.config"; then
+    info "Disabling CONFIG_IOSCHED_BFQ for Kyber-only I/O scheduler"
+    sed -i 's/^CONFIG_IOSCHED_BFQ=y$/# CONFIG_IOSCHED_BFQ is not set/' \
+        "$OUT_DIR/.config"
+  fi
+
   make -j"$(nproc --all)" O="$OUT_DIR" ARCH=arm64 CC=clang LD=ld.lld LLVM=1 LLVM_IAS=1 \
        || err "Build failed"
 

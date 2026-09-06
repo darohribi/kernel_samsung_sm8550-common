@@ -8,7 +8,7 @@ set -euo pipefail
 # =========================================================================
 # TOOLCHAIN CONFIGURATION
 # =========================================================================
-export CLANG_VERSION="${CLANG_VERSION:-clang-r584948b}"  # or use local clang-17+
+export CLANG_VERSION="${CLANG_VERSION:-clang-r596125}"  # or use local clang-17+
 export CLANG_DIR="${CLANG_DIR:-$HOME/tools/google-clang}"
 export CLANG_BINARY="$CLANG_DIR/bin/clang"
 export LLD_BINARY="$CLANG_DIR/bin/ld.lld"
